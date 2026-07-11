@@ -376,7 +376,7 @@ function renderInfo(info) {
         const mediaUrl = info.heroMedia.trim();
         const isYouTube = mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be');
         const isVimeo = mediaUrl.includes('vimeo.com');
-        const isMp4 = mediaUrl.toLowerCase().endsWith('.mp4');
+        const isVideoFile = /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(mediaUrl);
 
         if (isYouTube) {
             let videoId = '';
@@ -401,8 +401,11 @@ function renderInfo(info) {
                 heroSection.insertAdjacentHTML('afterbegin', iframeHTML);
                 heroSection.style.background = 'linear-gradient(to right, var(--hero-overlay-1), var(--hero-overlay-2))';
             }
-        } else if (isMp4) {
-            const videoHTML = `<video id="hero-bg-video" class="hero-bg-video" autoplay loop muted playsinline><source src="${mediaUrl}" type="video/mp4"></video>`;
+        } else if (isVideoFile) {
+            const extMatch = mediaUrl.match(/\.(mp4|webm|mov|m4v|ogg)/i);
+            const ext = extMatch ? extMatch[1].toLowerCase() : 'mp4';
+            const typeStr = ext === 'webm' ? 'video/webm' : (ext === 'ogg' ? 'video/ogg' : 'video/mp4');
+            const videoHTML = `<video id="hero-bg-video" class="hero-bg-video" autoplay loop muted playsinline><source src="${mediaUrl}" type="${typeStr}"></video>`;
             heroSection.insertAdjacentHTML('afterbegin', videoHTML);
             heroSection.style.background = 'linear-gradient(to right, var(--hero-overlay-1), var(--hero-overlay-2))';
             const vid = document.getElementById('hero-bg-video');
@@ -706,10 +709,7 @@ function renderEvents() {
 }
 
 function createEventHTML(event, isPast) {
-    const dateObj = window.parseDate(event.date);
-    const day = dateObj.getDate();
-    const monthStr = dateObj.toLocaleDateString('de-DE', { month: 'short' });
-    const weekdayStr = dateObj.toLocaleDateString('de-DE', { weekday: 'short' });
+    const fmt = window.formatFlexDate(event.date);
     const pastClass = isPast ? 'event-past' : '';
 
     const timeDisplay = event.endTime ? `${event.time} - ${event.endTime} Uhr` : `${event.time} Uhr`;
@@ -724,37 +724,40 @@ function createEventHTML(event, isPast) {
         ? `<a href="${event.locationUrl}" target="_blank" onclick="event.stopPropagation()" style="color: inherit; text-decoration: underline;">${event.location}</a>` 
         : event.location;
 
-    let tagsHTML = '';
-    if (event.category) {
-        const tags = event.category.split(',').map(s => s.trim());
-        tagsHTML = `<div style="display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.35rem; max-width: 200px;">${tags.map(tag => `<span class="tag-badge">🏷️ ${tag}</span>`).join('')}</div>`;
-    }
-
     const colorStyles = window.getEventCardColorStyles ? window.getEventCardColorStyles(event.color || event.akzentfarbe || event.accentColor) : { cardStyle: '', dateBoxStyle: '' };
 
+    // Date box adapts to flex date type
+    let dateBoxContent = '';
+    if (fmt.type === 'tbd') {
+        dateBoxContent = `<span class="event-day" style="font-size: 1.8rem;">?</span><span class="event-month">TBD</span>`;
+    } else if (fmt.type === 'year') {
+        dateBoxContent = `<span class="event-day" style="font-size: 1.2rem;">${fmt.day}</span>`;
+    } else if (fmt.type === 'month') {
+        dateBoxContent = `<span class="event-day" style="font-size: 1.1rem;">${fmt.day}</span><span class="event-month">${fmt.month}</span>`;
+    } else {
+        dateBoxContent = `<span class="event-weekday">${fmt.weekday}</span><span class="event-day">${fmt.day}</span><span class="event-month">${fmt.month}</span>`;
+    }
+
     return `
-    <li class="event-item fade-in-up ${pastClass}" style="cursor: pointer; display: flex; flex-direction: column; ${colorStyles.cardStyle}" onclick="openEventModal(${event.id})">
+    <li class="event-item fade-in-up ${pastClass}" style="cursor: pointer; display: flex; flex-direction: column; align-items: stretch; ${colorStyles.cardStyle}" onclick="openEventModal(${event.id})">
         ${imageHTML}
-        <div style="display: flex; gap: 1.5rem; width: 100%; align-items: flex-start;">
-            <div class="event-date-box" style="flex-shrink: 0; ${colorStyles.dateBoxStyle}">
-                <span class="event-weekday">${weekdayStr}</span>
-                <span class="event-day">${day}</span>
-                <span class="event-month">${monthStr}</span>
-            </div>
-            <div class="event-info" style="flex: 1; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-left: 0;">
-                <div style="flex: 1; min-width: 0;">
-                    <h3 class="event-title" style="margin-bottom: 0.4rem;">${event.title}</h3>
-                    <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
-                        <div>🕒 ${timeDisplay}${authorHTML}</div>
-                        <div style="margin-top: 0.25rem;">📍 ${locationDisplay}</div>
-                    </div>
+        <div style="display: flex; align-items: flex-start; gap: 1rem; width: 100%;">
+            <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 0.4rem; width: 80px;">
+                <div class="event-date-box" style="margin: 0; width: 100%; ${colorStyles.dateBoxStyle}">
+                    ${dateBoxContent}
                 </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; flex-shrink: 0;">
-                    <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 6px; display: flex; align-items: center; gap: 0.3rem; border-color: var(--accent-color); color: var(--accent-color);" title="Termin speichern" onclick="event.stopPropagation(); downloadSingleEvent(${event.id})">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        Speichern
-                    </button>
-                    ${tagsHTML}
+                <button class="btn btn-secondary" style="padding: 0.35rem 0; width: 100%; display: flex; justify-content: center; align-items: center; border-radius: 6px; border-color: var(--glass-border); color: var(--accent-color);" title="In Kalender speichern (.ics)" onclick="event.stopPropagation(); downloadSingleEvent(${event.id})">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                </button>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <h3 style="font-size: 1.2rem; margin-bottom: 0.3rem; color: var(--accent-color);">${event.title}</h3>
+                <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+                    <div>🕒 ${timeDisplay}${authorHTML}</div>
+                    <div style="margin-top: 0.25rem;">📍 ${locationDisplay}</div>
+                </div>
+                <div style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                    ${event.category ? event.category.split(',').map(tag => `<span class="tag-badge">🏷️ ${tag.trim()}</span>`).join('') : ''}
                 </div>
             </div>
         </div>
@@ -777,7 +780,7 @@ function downloadSingleEvent(id) {
 }
 
 function downloadAllEvents() {
-    const filteredEvents = currentEventCategory === 'Alle' 
+    let filteredEvents = currentEventCategory === 'Alle' 
         ? globalEventsData 
         : globalEventsData.filter(item => {
             if (!item.category) return false;
@@ -785,6 +788,14 @@ function downloadAllEvents() {
             return tags.includes(currentEventCategory);
         });
         
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    filteredEvents = filteredEvents.filter(item => {
+        const itemDate = window.parseDateSortable(item.date);
+        itemDate.setHours(0, 0, 0, 0);
+        return itemDate >= today;
+    });
+
     if (filteredEvents.length > 0) {
         const safeCat = currentEventCategory === 'Alle' ? 'alle' : currentEventCategory.toLowerCase().replace(/[^a-z0-9]/g, '_');
         generateICS(filteredEvents, `schach_rheinfelden_termine_${safeCat}.ics`);

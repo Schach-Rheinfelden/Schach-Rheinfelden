@@ -44,6 +44,86 @@ window.cleanMojibake = function(text) {
     return text;
 };
 
+// --- Flexible Date Parsing ---
+// Supports: DD.MM.YYYY, MM.YYYY, YYYY, YYYY-MM-DD, YYYYMMDD, ?, TBD, empty
+window.parseFlexDate = function(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return { date: null, type: 'tbd' };
+    const s = dateStr.trim();
+    if (s === '?' || s.toLowerCase() === 'tbd' || s.toLowerCase() === 'tba') {
+        return { date: null, type: 'tbd' };
+    }
+    // DD.MM.YYYY (German format)
+    if (s.includes('.')) {
+        const parts = s.split('.');
+        if (parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
+            return { date: new Date(`${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}T00:00:00`), type: 'full' };
+        }
+        if (parts.length === 2 && parts[0].length <= 2 && parts[1].length === 4) {
+            return { date: new Date(`${parts[1]}-${parts[0].padStart(2,'0')}-01T00:00:00`), type: 'month' };
+        }
+    }
+    // YYYYMMDD (compact)
+    if (/^\d{8}$/.test(s)) {
+        return { date: new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`), type: 'full' };
+    }
+    // YYYY-MM-DD (ISO)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        return { date: new Date(s + 'T00:00:00'), type: 'full' };
+    }
+    // YYYY-MM (ISO month)
+    if (/^\d{4}-\d{2}$/.test(s)) {
+        return { date: new Date(s + '-01T00:00:00'), type: 'month' };
+    }
+    // YYYY (year only)
+    if (/^\d{4}$/.test(s)) {
+        return { date: new Date(`${s}-01-01T00:00:00`), type: 'year' };
+    }
+    // Fallback: try native parsing
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+        return { date: d, type: 'full' };
+    }
+    return { date: null, type: 'tbd' };
+};
+
+// Format a date for display based on its flex type
+window.formatFlexDate = function(dateStr) {
+    const parsed = window.parseFlexDate(dateStr);
+    if (parsed.type === 'tbd') return { weekday: '', day: '?', month: 'TBD', full: 'Datum noch offen', type: 'tbd' };
+    if (parsed.type === 'year') {
+        const year = parsed.date.getFullYear();
+        return { weekday: '', day: year, month: '', full: String(year), type: 'year' };
+    }
+    if (parsed.type === 'month') {
+        const monthLong = parsed.date.toLocaleDateString('de-DE', { month: 'long' });
+        const monthShort = parsed.date.toLocaleDateString('de-DE', { month: 'short' });
+        const year = parsed.date.getFullYear();
+        return { weekday: '', day: monthShort, month: year, full: `${monthLong} ${year}`, type: 'month' };
+    }
+    // full date
+    const d = parsed.date;
+    return {
+        weekday: d.toLocaleDateString('de-DE', { weekday: 'short' }),
+        day: d.getDate(),
+        month: d.toLocaleDateString('de-DE', { month: 'short' }),
+        full: d.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }),
+        type: 'full'
+    };
+};
+
+// Get a sortable date (for comparisons), with TBD sorted to far future
+window.parseDateSortable = function(dateStr) {
+    const parsed = window.parseFlexDate(dateStr);
+    if (!parsed.date) return new Date('2099-12-31T00:00:00');
+    return parsed.date;
+};
+
+// Backward-compatible parseDate (used everywhere)
+window.parseDate = function(dateStr) {
+    const parsed = window.parseFlexDate(dateStr);
+    return parsed.date || new Date();
+};
+
 window.fetchTextWithEncoding = async function(response) {
     if (!response) return '';
     // If already decoded (e.g. from external source), return text directly
@@ -508,6 +588,19 @@ async function initBanner() {
                 if (rawVal.startsWith('"') && rawVal.endsWith('"')) {
                     rawVal = rawVal.slice(1, -1).replace(/""/g, '"');
                 }
+                
+                // Prüfe, ob sich der Announcement-Text seit dem letzten Besuch geändert hat
+                const lastSeenText = localStorage.getItem('last_seen_announcement');
+                if (lastSeenText !== rawVal) {
+                    // Text hat sich geändert -> Merkzustand zurücksetzen und neuen Text merken
+                    localStorage.setItem('last_seen_announcement', rawVal);
+                    localStorage.removeItem('is_banner_dismissed');
+                } else if (localStorage.getItem('is_banner_dismissed') === 'true') {
+                    // Text ist unverändert und wurde bereits geschlossen
+                    banner.style.display = 'none';
+                    return;
+                }
+
                 const formattedBanner = window.formatTextContent(rawVal);
                 banner.innerHTML = `
                     <div class="container" style="text-align: center; color: #fff; position: relative;">
@@ -529,6 +622,7 @@ async function initBanner() {
                 
                 banner.querySelector('.close-banner').addEventListener('click', () => {
                     banner.style.display = 'none';
+                    localStorage.setItem('is_banner_dismissed', 'true');
                     const nb = document.getElementById('navbar');
                     if (nb) {
                         nb.classList.remove('has-banner');

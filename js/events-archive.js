@@ -1,14 +1,5 @@
 
-window.parseDate = function(dateStr) {
-    if (!dateStr) return new Date();
-    if (dateStr.includes('.')) {
-        const parts = dateStr.split('.');
-        if (parts.length === 3) {
-            return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
-        }
-    }
-    return new Date(dateStr);
-};
+// parseDate is now defined globally in shared.js (with flexible date support)
 
 
 
@@ -370,6 +361,17 @@ window.downloadAllEvents = function() {
         });
     }
 
+    // Exclude past events by default unless user explicitly set a custom date filter
+    if (!dateFrom && !dateTo) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        eventsToExport = eventsToExport.filter(item => {
+            const itemDate = window.parseDateSortable(item.date);
+            itemDate.setHours(0, 0, 0, 0);
+            return itemDate >= today;
+        });
+    }
+
     if (eventsToExport.length === 0) return;
     
     const safeCat = currentCategory === 'Alle' ? 'alle' : currentCategory.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -440,7 +442,7 @@ function renderEvents() {
 
     if (dateFrom || dateTo) {
         filteredEvents = filteredEvents.filter(item => {
-            const itemDate = window.parseDate(item.date);
+            const itemDate = window.parseDateSortable(item.date);
             itemDate.setHours(0,0,0,0);
             
             if (dateFrom) {
@@ -456,8 +458,6 @@ function renderEvents() {
             return true;
         });
     }
-
-    filteredEvents.sort((a, b) => window.parseDate(b.date) - window.parseDate(a.date));
 
     const downloadBtn = document.getElementById('download-all-events-btn');
     if (downloadBtn) {
@@ -477,12 +477,25 @@ function renderEvents() {
     const today = new Date();
     today.setHours(0,0,0,0);
 
-    container.innerHTML = filteredEvents.map(event => {
-        const dateObj = window.parseDate(event.date);
-        const day = dateObj.getDate();
-        const monthStr = dateObj.toLocaleDateString('de-DE', { month: 'short' });
-        const weekdayStr = dateObj.toLocaleDateString('de-DE', { weekday: 'short' });
-        const isPast = dateObj < today;
+    // Split into upcoming and past
+    const upcoming = filteredEvents.filter(e => {
+        const parsed = window.parseFlexDate(e.date);
+        if (parsed.type === 'tbd') return true; // TBD counts as upcoming
+        return parsed.date >= today;
+    });
+    const past = filteredEvents.filter(e => {
+        const parsed = window.parseFlexDate(e.date);
+        if (parsed.type === 'tbd') return false;
+        return parsed.date < today;
+    });
+
+    // Upcoming: ascending (nearest first), TBD at end
+    upcoming.sort((a, b) => window.parseDateSortable(a.date) - window.parseDateSortable(b.date));
+    // Past: descending (most recent first)
+    past.sort((a, b) => window.parseDateSortable(b.date) - window.parseDateSortable(a.date));
+
+    function renderEventCard(event, isPast) {
+        const fmt = window.formatFlexDate(event.date);
         const pastClass = isPast ? 'event-past' : '';
 
         const timeDisplay = event.endTime ? `${event.time} - ${event.endTime} Uhr` : `${event.time} Uhr`;
@@ -495,14 +508,29 @@ function renderEvents() {
 
         const colorStyles = window.getEventCardColorStyles ? window.getEventCardColorStyles(event.color || event.akzentfarbe || event.accentColor) : { cardStyle: '', dateBoxStyle: '' };
 
+        // Date box adapts to flex date type
+        let dateBoxContent = '';
+        if (fmt.type === 'tbd') {
+            dateBoxContent = `<span class="event-day" style="font-size: 1.8rem;">?</span><span class="event-month">TBD</span>`;
+        } else if (fmt.type === 'year') {
+            dateBoxContent = `<span class="event-day" style="font-size: 1.2rem;">${fmt.day}</span>`;
+        } else if (fmt.type === 'month') {
+            dateBoxContent = `<span class="event-day" style="font-size: 1.1rem;">${fmt.day}</span><span class="event-month">${fmt.month}</span>`;
+        } else {
+            dateBoxContent = `<span class="event-weekday">${fmt.weekday}</span><span class="event-day">${fmt.day}</span><span class="event-month">${fmt.month}</span>`;
+        }
+
         return `
-        <div class="event-card ${pastClass}" style="cursor: pointer; display: flex; flex-direction: column; ${colorStyles.cardStyle}" onclick="openEventModal(${event.id})">
+        <div class="event-card ${pastClass}" style="cursor: pointer; display: flex; flex-direction: column; align-items: stretch; ${colorStyles.cardStyle}" onclick="openEventModal(${event.id})">
             ${imageHTML}
-            <div style="display: flex; align-items: flex-start; gap: 1rem;">
-                <div class="event-date-box" style="margin: 0; flex-shrink: 0; ${colorStyles.dateBoxStyle}">
-                    <span class="event-weekday">${weekdayStr}</span>
-                    <span class="event-day">${day}</span>
-                    <span class="event-month">${monthStr}</span>
+            <div style="display: flex; align-items: flex-start; gap: 1rem; width: 100%;">
+                <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 0.4rem; width: 80px;">
+                    <div class="event-date-box" style="margin: 0; width: 100%; ${colorStyles.dateBoxStyle}">
+                        ${dateBoxContent}
+                    </div>
+                    <button class="btn btn-secondary" style="padding: 0.35rem 0; width: 100%; display: flex; justify-content: center; align-items: center; border-radius: 6px; border-color: var(--glass-border); color: var(--accent-color);" title="In Kalender speichern (.ics)" onclick="event.stopPropagation(); downloadSingleEvent(${event.id})">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    </button>
                 </div>
                 <div style="flex: 1; min-width: 0;">
                     <h3 style="font-size: 1.2rem; margin-bottom: 0.3rem; color: var(--accent-color);">${event.title}</h3>
@@ -515,12 +543,62 @@ function renderEvents() {
                     </div>
                 </div>
             </div>
-            <div style="margin-top: auto; padding-top: 1rem;">
-                <button class="btn btn-secondary" style="width: 100%; padding: 0.5rem; font-size: 0.9rem;" onclick="event.stopPropagation(); downloadSingleEvent(${event.id})">
-                    In Kalender speichern
-                </button>
-            </div>
         </div>
         `;
-    }).join('');
+    }
+
+    let html = '';
+
+    // Render upcoming event cards directly in the grid
+    if (upcoming.length > 0) {
+        html += upcoming.map(e => renderEventCard(e, false)).join('');
+    }
+
+    // Toggle button and past event cards (hidden by default)
+    if (past.length > 0) {
+        html += `
+        <div style="grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; margin: 3rem 0 1.5rem 0; position: relative;">
+            <div style="position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--glass-border), transparent); z-index: 1;"></div>
+            <button class="past-toggle-btn" onclick="togglePastEvents(${past.length})" id="past-toggle-btn" style="position: relative; z-index: 2; background: var(--bg-color); border: 1px solid var(--glass-border); color: var(--text-secondary); padding: 0.65rem 1.5rem; border-radius: 50px; font-size: 0.9rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
+                <span>Vergangene Termine anzeigen (${past.length})</span>
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="transition: transform 0.3s ease;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+        </div>`;
+        html += past.map(e => {
+            const cardHtml = renderEventCard(e, true);
+            // Inject past-event-card class and display: none style
+            return cardHtml.replace('class="event-card ', 'class="event-card past-event-card ').replace('style="cursor: pointer; display: flex;', 'style="cursor: pointer; display: none;');
+        }).join('');
+    }
+
+    if (upcoming.length === 0 && past.length === 0) {
+        html = '<p class="loading" style="grid-column: 1 / -1;">Keine Termine gefunden.</p>';
+    } else if (upcoming.length === 0) {
+        html = '<p class="loading" style="grid-column: 1 / -1; margin-bottom: 1rem;">Aktuell keine kommenden Termine geplant.</p>' + html;
+    }
+
+    container.innerHTML = html;
+}
+
+// Toggle past events visibility
+function togglePastEvents(count) {
+    const cards = document.querySelectorAll('.past-event-card');
+    const btn = document.getElementById('past-toggle-btn');
+    if (!cards.length) return;
+    
+    const isHidden = cards[0].style.display === 'none';
+    cards.forEach(card => {
+        card.style.display = isHidden ? 'flex' : 'none';
+    });
+
+    if (btn) {
+        const textSpan = btn.querySelector('span');
+        const icon = btn.querySelector('svg');
+        if (textSpan) {
+            textSpan.textContent = isHidden ? 'Vergangene Termine ausblenden' : `Vergangene Termine anzeigen (${count})`;
+        }
+        if (icon) {
+            icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+    }
 }
