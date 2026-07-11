@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- === Titel & Suchmaschinen === -->
+    <title>Seite nicht gefunden | Schach-Rheinfelden (CH & DE)</title>
+    <meta name="description" content="Fehler 404: Die gesuchte Seite existiert nicht oder wurde vom Brett genommen. Zurück zur Startseite von Schach-Rheinfelden." />
+
+    <!-- === Favicon & Icons === -->
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="apple-touch-icon" href="assets/favicon.svg">
+
+    <!-- === Open Graph === -->
+    <meta property="og:title" content="Seite nicht gefunden | Schach-Rheinfelden" />
+    <meta property="og:description" content="Fehler 404: Die gesuchte Seite existiert nicht. Kehre zurück zur Startseite unserer binationalen Schach-Community." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://schach-rheinfelden.github.io/404.html" />
+    <meta property="og:image" content="assets/Schach-Rheinfelden_Banner.png" />
+    <meta property="og:site_name" content="Schach-Rheinfelden" />
+
+    <link rel="stylesheet" href="css/style.css?v=9">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+
+    <style>
+        .error-404-container {
+            min-height: calc(100vh - 180px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8rem 1.5rem 5rem;
+            position: relative;
+        }
+
+        .error-card {
+            max-width: 640px;
+            width: 100%;
+            text-align: center;
+            padding: 4rem 3rem;
+            position: relative;
+            overflow: hidden;
+            border-top: 2px solid var(--accent-color);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .error-glow-bg {
+            position: absolute;
+            top: -45%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 380px;
+            height: 380px;
+            background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .error-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .error-title {
+            font-family: var(--font-heading);
+            font-size: clamp(2.6rem, 6.5vw, 3.8rem);
+            font-weight: 700;
+            line-height: 1.15;
+            color: var(--text-primary);
+            margin-bottom: 1.2rem;
+        }
+
+        .error-title .accent-text {
+            color: var(--accent-color);
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .error-message {
+            font-size: 1.18rem;
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.75;
+        }
+
+        .btn-home {
+            background: var(--gold-gradient);
+            color: #0b1220 !important;
+            font-weight: 700;
+            font-size: 1.05rem;
+            padding: 1rem 2.6rem;
+            border-radius: 999px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+            box-shadow: 0 8px 24px rgba(212, 175, 55, 0.35);
+            transition: var(--transition);
+        }
+
+        .btn-home:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(212, 175, 55, 0.55);
+        }
+    </style>
+</head>
+<body>
+    <div id="top-banner" class="top-banner"></div>
+
+    <!-- Navigation -->
+    <header id="navbar" class="navbar">
+        <nav class="container nav-content">
+            <a href="index.html" class="brand">
+                <span class="logo-icon">♞</span>
+                <span id="nav-club-name" class="brand-name">Schach Rheinfelden</span>
+            </a>
+            <ul class="nav-links" id="nav-links">
+                <li><a href="index.html#news">News</a></li>
+                <li><a href="index.html#teams">Mannschaften</a></li>
+                <li><a href="index.html#tournaments">Turniere</a></li>
+                <li><a href="index.html#events">Termine</a></li>
+                <li><a href="index.html#members">Vorstand</a></li>
+                <li><a href="mediathek.html">Mediathek</a></li>
+            </ul>
+            <div class="nav-controls">
+                <label class="theme-switch" title="Theme wechseln">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider round"></span>
+                </label>
+                <div class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main 404 Content -->
+    <main class="error-404-container">
+        <div class="glass-card error-card">
+            <div class="error-glow-bg"></div>
+
+            <div class="error-content">
+                <div style="margin-bottom: 1.2rem;">
+                    <span class="media-type-badge" style="font-size: 0.95rem; padding: 0.35rem 1.1rem; letter-spacing: 0.08em;">FEHLER 404</span>
+                </div>
+
+                <h1 class="error-title">
+                    Zug ins <span class="accent-text">Leere</span>
+                </h1>
+
+                <p class="error-message">
+                    Ups! Die Seite, die du suchst, existiert nicht mehr oder wurde vom Brett genommen. Selbst Großmeistern passiert mal ein Fehlzug – lass uns die Partie auf der Startseite neu aufstellen!
+                </p>
+
+                <div>
+                    <a href="index.html" class="btn-home">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                        </svg>
+                        Zurück zur Startseite
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer (Exact same structure as all other pages) -->
+    <footer id="contact" class="footer">
+        <div class="container footer-content">
+            <div class="footer-info">
+                <h3>Kontakt</h3>
+                <div id="footer-contact-container">
+                    <!-- Contact info injected here by shared.js -->
+                </div>
+            </div>
+            <div class="footer-legal">
+                <p id="footer-copyright-line">&copy; <span id="current-year"></span> <span id="footer-club-name">Verein</span>.</p>
+                <p><a href="#" onclick="openLegalModal('impressum'); return false;">Impressum</a> | <a href="#" onclick="openLegalModal('datenschutz'); return false;">Datenschutz</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Legal Modal -->
+    <div id="legal-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeLegalModal()"></div>
+        <div class="modal-content glass-card" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeLegalModal()">&times;</button>
+            <h2 id="legal-modal-title" style="margin-bottom: 1.5rem; color: var(--accent-color);"></h2>
+            <div id="legal-modal-body" style="font-size: 1.1rem; line-height: 1.6; color: var(--text-primary);"></div>
+        </div>
+    </div>
+
+    <!-- App Scripts -->
+    <script src="js/shared.js?v=13"></script>
+</body>
+</html>

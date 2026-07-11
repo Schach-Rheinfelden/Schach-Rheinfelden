@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- === Titel & Suchmaschinen === -->
+    <title>Liga-Center | Schach-Rheinfelden (SMM, SGM & Turniere)</title>
+    <meta name="description" content="Das interaktive Liga-Center von Schach-Rheinfelden: Aktuelle Tabellen, Match-Center, Brett-Details, ELO/DWZ-Statistiken und Spieleranalysen." />
+
+    <!-- === Favicon & Icons === -->
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="apple-touch-icon" href="assets/favicon.svg">
+
+    <!-- === Open Graph (Link-Vorschau für WhatsApp, Facebook, iMessage) === -->
+    <meta property="og:title" content="Liga-Center - Schach-Rheinfelden" />
+    <meta property="og:description" content="Interaktive Tabellen, Spieltag-Ergebnisse und detaillierte Spieler-Analysen unserer Mannschaften in SMM, SGM und Liga-Wettbewerben." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://schach-rheinfelden.github.io/liga-center.html" />
+    <meta property="og:image" content="assets/Schach-Rheinfelden_Banner.png" />
+    <meta property="og:site_name" content="Schach-Rheinfelden" />
+
+    <link rel="stylesheet" href="css/style.css?v=9">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        .zm-select {
+            width: 100%;
+            background: var(--surface-color);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23d4af37' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.8rem center;
+            background-repeat: no-repeat;
+            background-size: 1.2em 1.2em;
+            padding-right: 2.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .zm-select:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.25);
+        }
+        .light-theme .zm-select {
+            background-color: #ffffff;
+            color: #0f172a;
+            border: 1px solid rgba(0, 0, 0, 0.18);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .zm-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+        .zm-table th {
+            padding: 0.8rem 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+        .zm-table td {
+            padding: 0.8rem 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            transition: background 0.2s ease;
+        }
+        .zm-table tr:hover td {
+            background: rgba(212, 175, 55, 0.08);
+        }
+        .zm-table tr.active-team td {
+            background: rgba(212, 175, 55, 0.15);
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+        .zm-table tr.active-team {
+            border-left: 3px solid var(--accent-color);
+        }
+        .badge-res {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .badge-win { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .badge-draw { background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.4); }
+        .light-theme .badge-draw { background: rgba(100, 116, 139, 0.15); color: #475569; border: 1px solid rgba(100, 116, 139, 0.3); }
+        .badge-loss { background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.4); }
+        .color-dot-w { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #f8fafc; border: 1px solid #94a3b8; box-shadow: 0 1px 3px rgba(0,0,0,0.3); vertical-align: middle; }
+        .color-dot-s { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #0f172a; border: 1px solid #475569; box-shadow: 0 1px 3px rgba(0,0,0,0.5); vertical-align: middle; }
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+        }
+        @media (min-width: 1024px) {
+            .grid-2col { grid-template-columns: 1fr 1fr; }
+        }
+        .grid-player {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+        @media (min-width: 1200px) {
+            .grid-player { grid-template-columns: 7fr 5fr; }
+        }
+        .ctrl-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .ctrl-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .zm-controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            align-items: end;
+        }
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            line-height: 1.5;
+        }
+        .filter-section-title {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .match-card {
+            background: var(--table-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .match-card:hover {
+            border-color: rgba(212, 175, 55, 0.45);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+        }
+        .match-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            gap: 1rem;
+            cursor: pointer;
+        }
+        .match-team {
+            font-weight: 600;
+            font-size: 0.96rem;
+            color: var(--text-primary);
+        }
+        .match-team.highlight-team {
+            color: var(--accent-color);
+            font-weight: 700;
+        }
+        .match-scores {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            font-weight: 600;
+        }
+        .match-ep {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            border: 1px solid var(--glass-border);
+            font-weight: 500;
+        }
+        .btn-boards-toggle {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 0.4rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .btn-boards-toggle:hover {
+            color: var(--accent-color);
+            border-color: var(--accent-color);
+            background: rgba(212, 175, 55, 0.08);
+        }
+        .boards-details {
+            padding: 1rem 1.25rem 1.25rem;
+            background: rgba(0, 0, 0, 0.18);
+            border-top: 1px solid var(--glass-border);
+        }
+        .boards-details.hidden {
+            display: none;
+        }
+        .light-theme .boards-details {
+            background: rgba(248, 250, 252, 0.85);
+        }
+        .light-theme .badge-res-neutral {
+            background: rgba(0, 0, 0, 0.04);
+        }
+        .score-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .score-bar {
+            flex-grow: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            min-width: 60px;
+        }
+        .light-theme .score-bar {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        .score-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, var(--accent-color));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .btn-analyze-player {
+            background: rgba(212, 175, 55, 0.15);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: var(--accent-color);
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .btn-analyze-player:hover {
+            background: var(--accent-color);
+            color: #000000;
+        }
+        .round-accordion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.9rem 1.25rem;
+            background: var(--table-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            margin: 1.2rem 0 0.6rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 700;
+            font-family: var(--font-main);
+            color: var(--accent-color);
+            letter-spacing: 0.5px;
+        }
+        .round-accordion-header:hover {
+            border-color: var(--accent-color);
+            background: rgba(212, 175, 55, 0.08);
+        }
+        .round-accordion-body.hidden {
+            display: none;
+        }
+        .match-card, .match-header, .match-team, .boards-details, .topscorer-table {
+            font-family: var(--font-main);
+        }
+        .badge-mp-neutral {
+            background: rgba(212, 175, 55, 0.12);
+            border: none;
+            color: var(--accent-color);
+            font-weight: 800;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            display: inline-block;
+        }
+        .badge-res-neutral {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            font-weight: 700;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            display: inline-block;
+            min-width: 45px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .btn-toggle-all {
+            margin-top: 1.8rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            padding: 0.8rem 2.2rem;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(212, 175, 55, 0.45);
+            color: var(--accent-color);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font-main);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+        }
+        .btn-toggle-all:hover {
+            background: var(--gold-gradient);
+            color: #050810;
+            border-color: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(212, 175, 55, 0.35);
+        }
+        .piece-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .piece-white {
+            background: #f8fafc;
+            border: 1px solid #94a3b8;
+            color: #000;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.4);
+        }
+        .piece-black {
+            background: #1e293b;
+            border: 1px solid #64748b;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="top-banner" class="top-banner"></div>
+    <header id="navbar" class="navbar">
+        <nav class="container nav-content">
+            <a href="index.html" class="brand">
+                <span class="logo-icon">♞</span>
+                <span id="nav-club-name" class="brand-name">Schach Rheinfelden</span>
+            </a>
+            <ul class="nav-links" id="nav-links">
+                <li><a href="index.html#news">News</a></li>
+                <li><a href="index.html#teams">Mannschaften</a></li>
+                <li><a href="index.html#tournaments">Turniere</a></li>
+                <li><a href="index.html#events">Termine</a></li>
+                <li><a href="index.html#members">Vorstand</a></li>
+                <li><a href="mediathek.html">Mediathek</a></li>
+            </ul>
+            <div class="nav-controls">
+                <label class="theme-switch" title="Theme wechseln">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider round"></span>
+                </label>
+                <div class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main style="padding-top: 120px; padding-bottom: 60px; min-height: 100vh;">
+        <section class="section">
+            <div class="container">
+                <!-- Header / Titelbereich (ohne redundanten Badge) -->
+                <div style="margin-bottom: 2rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1.5rem;">
+                    <h1 class="section-title" style="margin-bottom: 0.5rem; text-align: left;"><span class="accent">Liga-Center</span></h1>
+                    <p class="section-subtitle">Wähle Wettbewerb, Saison und Liga aus, um aktuelle Tabellenstände, Matchpunkte und individuelle Formkurven zu analysieren.</p>
+                </div>
+
+                <!-- Kontroll-Box (Turnier / Saison / Liga / Runde / Team / Spieler) -->
+                <div class="glass-card" style="padding: 1.8rem; margin-bottom: 2.5rem; background: var(--table-bg);">
+                    <div class="filter-section-title">Wettbewerb & Liga Auswahl</div>
+                    <div class="zm-controls-grid" style="margin-bottom: 1.8rem;">
+                        <div class="ctrl-group">
+                            <label class="ctrl-label">Turnier / Verband</label>
+                            <select id="turnierSelect" class="zm-select" style="border-color: var(--accent-color);"></select>
+                        </div>
+                        <div class="ctrl-group">
+                            <label class="ctrl-label">Saison</label>
+                            <select id="saisonSelect" class="zm-select"></select>
+                        </div>
+                        <div class="ctrl-group">
+                            <label class="ctrl-label">Liga / Spielklasse</label>
+                            <select id="ligaSelect" class="zm-select"></select>
+                        </div>
+                    </div>
+
+                    <div class="filter-section-title">Rundenstand & Team-Fokus</div>
+                    <div class="zm-controls-grid">
+                        <div class="ctrl-group">
+                            <label class="ctrl-label">Rundenstand</label>
+                            <select id="rundeSelect" class="zm-select">
+                                <option value="alle">Aktueller Stand</option>
+                            </select>
+                        </div>
+                        <div class="ctrl-group">
+                            <label class="ctrl-label" style="color: var(--text-secondary);">Team-Fokus</label>
+                            <select id="teamSelect" class="zm-select"></select>
+                        </div>
+                        <div class="ctrl-group">
+                            <label class="ctrl-label" style="color: var(--text-secondary);">Spieler-Fokus</label>
+                            <select id="spielerSelect" class="zm-select"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-Spalten Layout: Ligatabelle & Team Chart -->
+                <div class="grid-2col">
+                    <div class="glass-card" style="padding: 1.8rem; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--accent-color), #10b981);"></div>
+                        <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center;">
+                            <span id="tabellenTitel">Ligatabelle</span>
+                        </h2>
+                        <div style="overflow-x: auto;">
+                            <table class="zm-table">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: center; width: 50px;">Rang</th>
+                                        <th>Team</th>
+                                        <th style="text-align: center; width: 60px;" title="Anzahl der Spiele">Sp.</th>
+                                        <th style="text-align: center; width: 70px;">MP</th>
+                                        <th style="text-align: center; width: 70px;">EP</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ligaTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="glass-card" style="padding: 1.8rem; display: flex; flex-direction: column;">
+                        <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: var(--text-primary);">Team-Performance (MP & EP)</h2>
+                        <div style="position: relative; flex-grow: 1; min-height: 280px;">
+                            <canvas id="teamsChart"></canvas>
+                        </div>
+                    </div>
+                </div> <!-- Ende 2-Spalten Layout grid-2col -->
+
+                <!-- NEU: Begegnungen & Match-Center -->
+                <div class="glass-card" style="padding: 1.8rem; margin-bottom: 2.5rem; position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, #10b981, var(--accent-color));"></div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem;">
+                        <div>
+                            <h2 style="font-size: 1.4rem; color: var(--text-primary); margin-bottom: 0.3rem;">Match-Center</h2>
+                            <p style="color: var(--text-secondary); font-size: 0.95rem; margin: 0;">Rundenergebnisse, Mannschaftspunkte und ausklappbare Brett-Details</p>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center;">
+                            <div style="display: flex; gap: 0.4rem; align-items: center;">
+                                <button type="button" class="btn-boards-toggle" onclick="toggleAllMatchCenter(true)" title="Alle Runden & Brett-Details ausklappen" style="padding: 0.5rem 0.85rem;">
+                                    ▼ Alle ausklappen
+                                </button>
+                                <button type="button" class="btn-boards-toggle" onclick="toggleAllMatchCenter(false)" title="Alle Runden & Brett-Details einklappen" style="padding: 0.5rem 0.85rem;">
+                                    ▲ Alle einklappen
+                                </button>
+                            </div>
+                            <select id="begegnungRundeSelect" class="zm-select" style="width: auto; min-width: 170px; padding: 0.5rem 2.2rem 0.5rem 0.8rem;"></select>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text-primary); cursor: pointer; background: var(--table-bg); padding: 0.5rem 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); font-weight: 600;">
+                                <input type="checkbox" id="begegnungTeamFilterCheckbox" style="accent-color: var(--accent-color); cursor: pointer; width: 16px; height: 16px;">
+                                <span id="begegnungTeamFilterLabel">Nur Fokus-Team</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="begegnungenContainer"></div>
+                </div>
+
+                <!-- NEU: Spieler-Bestenliste -->
+                <div class="glass-card" style="padding: 1.8rem; margin-bottom: 2.5rem; position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--accent-color), #f43f5e);"></div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem;">
+                        <div>
+                            <h2 style="font-size: 1.4rem; color: var(--text-primary); margin-bottom: 0.3rem;">Spieler-Bestenliste</h2>
+                            <p style="color: var(--text-secondary); font-size: 0.95rem; margin: 0;">Erfolgreichste Spieler der Liga – Klicke auf Analyse für die Formkurve</p>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center;">
+                            <input type="text" id="bestenlisteSearch" placeholder="🔍 Spieler suchen..." class="zm-select" style="width: 190px; padding: 0.5rem 0.8rem; background-image: none;">
+                            <select id="bestenlisteTeamFilter" class="zm-select" style="width: auto; min-width: 170px; padding: 0.5rem 2.2rem 0.5rem 0.8rem;"></select>
+                            <select id="bestenlisteSortSelect" class="zm-select" style="width: auto; min-width: 160px; padding: 0.5rem 2.2rem 0.5rem 0.8rem;">
+                                <option value="punkte">Sortierung: Punkte</option>
+                                <option value="quote">Sortierung: Quote (%)</option>
+                                <option value="partien">Sortierung: Partien</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="zm-table topscorer-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: center; width: 60px;">Rang</th>
+                                    <th>Spieler</th>
+                                    <th>Team</th>
+                                    <th style="text-align: center; width: 80px;">Elo</th>
+                                    <th style="text-align: center; width: 70px;" title="Gespielte Partien">Sp.</th>
+                                    <th style="text-align: center; width: 80px;" title="Erzielte Punkte">Pkt.</th>
+                                    <th style="width: 160px;">Quote (%)</th>
+                                    <th style="text-align: center; width: 100px;">Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bestenlisteTbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="bestenlisteToggleContainer" style="text-align: center;"></div>
+                </div>
+
+                <!-- Spieler-Analyse Bereich -->
+                <div class="glass-card" style="padding: 1.8rem; position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent-color);"></div>
+                    
+                    <h2 style="font-size: 1.5rem; margin-bottom: 1.8rem; color: var(--text-primary); padding-left: 0.5rem;" id="spielerTitel">Spieler-Analyse</h2>
+                    
+                    <div class="grid-player" style="padding-left: 0.5rem;">
+                        <div style="overflow-x: auto;">
+                            <table class="zm-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 70px;">Runde</th>
+                                        <th style="text-align: center; width: 60px;">Farbe</th>
+                                        <th style="text-align: center; width: 80px;">Eig. Elo</th>
+                                        <th>Gegner</th>
+                                        <th style="text-align: center; width: 80px;">Elo (Gg.)</th>
+                                        <th style="text-align: center; width: 90px;">Ergebnis</th>
+                                        <th style="text-align: right; width: 80px;">Kumuliert</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="spielerTbody"></tbody>
+                            </table>
+                        </div>
+
+                        <div style="position: relative; min-height: 300px; width: 100%; display: flex; align-items: center; justify-content: center; background: var(--table-bg); border: 1px solid var(--glass-border); padding: 1rem; border-radius: 12px;">
+                            <canvas id="playerChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zurück-Button ohne Icon -->
+                <div style="text-align: center; margin-top: 3.5rem;">
+                    <a href="index.html#tournaments" class="btn btn-secondary" style="padding: 0.8rem 2rem; font-size: 1.05rem;">
+                        Zurück zu den Turnieren
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer id="contact" class="footer">
+        <div class="container footer-content">
+            <div class="footer-info">
+                <h3>Kontakt</h3>
+                <div id="footer-contact-container">
+                    <!-- Contact info injected via CSV -->
+                </div>
+            </div>
+            <div class="footer-legal">
+                <p id="footer-copyright-line">&copy; <span id="current-year"></span> <span id="footer-club-name">Schach Rheinfelden</span>.</p>
+                <p><a href="#" onclick="openLegalModal('impressum'); return false;">Impressum</a> | <a href="#" onclick="openLegalModal('datenschutz'); return false;">Datenschutz</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Legal Modal -->
+    <div id="legal-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeLegalModal()"></div>
+        <div class="modal-content glass-card" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeLegalModal()">&times;</button>
+            <h2 id="legal-modal-title" style="margin-bottom: 1.5rem; color: var(--accent-color);"></h2>
+            <div id="legal-modal-body" style="font-size: 1.1rem; line-height: 1.6; color: var(--text-primary);"></div>
+        </div>
+    </div>
+
+    <!-- External Libs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- App Scripts -->
+    <script src="js/shared.js?v=13"></script>
+    <script src="js/liga-center.js?v=16"></script>
+</body>
+</html>

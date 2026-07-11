@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- === Titel & Suchmaschinen === -->
+    <title>Termine & Kalender | Schach-Rheinfelden (CH & DE)</title>
+    <meta name="description" content="Alle anstehenden und vergangenen Termine, Turniere, Trainingszeiten und Vereinsanlässe von Schach-Rheinfelden (CH & DE)." />
+
+    <!-- === Favicon & Icons === -->
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="apple-touch-icon" href="assets/favicon.svg">
+
+    <!-- === Open Graph (Link-Vorschau für WhatsApp, Facebook, iMessage) === -->
+    <meta property="og:title" content="Termine & Kalender - Schach-Rheinfelden" />
+    <meta property="og:description" content="Verpasse kein Training oder Turnier mehr: Alle Termine der Schach-Gemeinschaft am Rheinknie im praktischen Überblick." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://schach-rheinfelden.github.io/events-archive.html" />
+    <meta property="og:image" content="assets/Schach-Rheinfelden_Banner.png" />
+    <meta property="og:site_name" content="Schach-Rheinfelden" />
+
+    <link rel="stylesheet" href="css/style.css?v=9">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        .search-bar {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .search-bar:focus {
+            border-color: var(--accent-color);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .light-theme .search-bar {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .light-theme .search-bar:focus {
+            background: rgba(0, 0, 0, 0.08);
+        }
+        
+        /* Calendar Icon Style for Dark Theme */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.6;
+            cursor: pointer;
+        }
+        .light-theme input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: none;
+            opacity: 0.6;
+        }
+        
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .event-card {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .light-theme .event-card {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .event-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .event-card.event-past {
+            opacity: 0.6;
+            filter: grayscale(80%);
+        }
+
+        .event-card.event-past:hover {
+            opacity: 1;
+            filter: grayscale(0%);
+        }
+    </style>
+</head>
+<body>
+    <div id="top-banner" class="top-banner"></div>
+    <header id="navbar" class="navbar">
+        <nav class="container nav-content">
+            <a href="index.html" class="brand">
+                <span class="logo-icon">♞</span>
+                <span id="nav-club-name" class="brand-name">Schach Rheinfelden</span>
+            </a>
+            <ul class="nav-links" id="nav-links">
+                <li><a href="index.html#news">News</a></li>
+                <li><a href="index.html#teams">Mannschaften</a></li>
+                <li><a href="index.html#tournaments">Turniere</a></li>
+                <li><a href="index.html#events">Termine</a></li>
+                <li><a href="index.html#members">Vorstand</a></li>
+                <li><a href="mediathek.html">Mediathek</a></li>
+            </ul>
+            <div class="nav-controls">
+                <label class="theme-switch" title="Theme wechseln">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider round"></span>
+                </label>
+                <div class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main style="padding-top: 120px; min-height: 100vh;">
+        <section class="section">
+            <div class="container">
+                <h1 class="section-title" style="margin-bottom: 2rem;">Termine</h1>
+                
+                <input type="text" id="events-search" class="search-bar" placeholder="Suchen nach Titel, Ort oder Datum...">
+                
+                <div class="date-filter-container" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 2rem; background: var(--glass-bg); padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label for="events-date-from" style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Von:</label>
+                        <input type="date" id="events-date-from" class="search-bar" style="margin-bottom: 0; width: auto; padding: 0.5rem 0.8rem; border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-style: italic; color: var(--text-secondary);">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label for="events-date-to" style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Bis:</label>
+                        <input type="date" id="events-date-to" class="search-bar" style="margin-bottom: 0; width: auto; padding: 0.5rem 0.8rem; border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-style: italic; color: var(--text-secondary);">
+                    </div>
+                    <button id="events-date-reset" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Reset</button>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; flex-wrap: wrap; gap: 1rem;">
+                    <div id="events-filter" class="filter-bar" style="margin-bottom: 0;">
+                        <!-- Filter buttons injected via JS -->
+                    </div>
+                    
+                    <button id="download-all-events-btn" class="btn btn-secondary" onclick="downloadAllEvents()" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span>Alle Termine speichern</span>
+                    </button>
+                </div>
+
+                <div id="events-archive-container" class="events-grid">
+                    <!-- Events injected here -->
+                    <div class="loading">Lade Termine...</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer id="contact" class="footer">
+        <div class="container footer-content">
+            <div class="footer-info">
+                <h3>Kontakt</h3>
+                <div id="footer-contact-container">
+                    <!-- Contact info injected via CSV -->
+                </div>
+            </div>
+            <div class="footer-legal">
+                <p id="footer-copyright-line">&copy; <span id="current-year"></span> <span id="footer-club-name">Schach Rheinfelden</span>.</p>
+                <p><a href="#" onclick="openLegalModal('impressum'); return false;">Impressum</a> | <a href="#" onclick="openLegalModal('datenschutz'); return false;">Datenschutz</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Event Modal -->
+    <div id="event-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeEventModal()"></div>
+        <div class="modal-content glass-card">
+            <button class="close-btn" onclick="closeEventModal()">&times;</button>
+            <div id="event-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Legal Modal -->
+    <div id="legal-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeLegalModal()"></div>
+        <div class="modal-content glass-card" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeLegalModal()">&times;</button>
+            <h2 id="legal-modal-title" style="margin-bottom: 1.5rem; color: var(--accent-color);"></h2>
+            <div id="legal-modal-body" style="font-size: 1.1rem; line-height: 1.6; color: var(--text-primary);"></div>
+        </div>
+    </div>
+
+    <script src="js/shared.js?v=13"></script>
+    <script src="js/events-archive.js?v=17"></script>
+</body>
+</html>
