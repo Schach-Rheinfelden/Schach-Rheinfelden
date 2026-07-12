@@ -1354,7 +1354,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
                     const gridItems = Object.entries(p).filter(([key, value]) => {
                         const lowerKey = key.toLowerCase();
                         // Interne Keys und Team ausblenden (Team wird oben als Pins angezeigt)
-                        if (['id', 'teamid', 'name', 'avatar', 'title', '_globalsettings', 'team'].includes(lowerKey)) return false;
+                        if (['id', 'teamid', 'teamids', 'name', 'avatar', 'title', '_globalsettings', 'team'].includes(lowerKey) || lowerKey.startsWith('_')) return false;
                         if (settings[lowerKey] === false) return false;
                         if (value === null || value === undefined || value.toString().trim() === '') return false;
                         if (seenKeys.has(lowerKey)) return false;
