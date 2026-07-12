@@ -923,7 +923,7 @@ window.getEventCardColorStyles = function(colorRaw) {
     if (!color) return { cardStyle: '', dateBoxStyle: '', badgeStyle: '', color: null };
     return {
         cardStyle: `border-left: 5px solid ${color} !important; background: linear-gradient(135deg, color-mix(in srgb, ${color} 18%, var(--surface-color)), var(--surface-color)) !important; box-shadow: 0 4px 24px -4px color-mix(in srgb, ${color} 25%, transparent);`,
-        dateBoxStyle: `border-color: ${color} !important;`,
+        dateBoxStyle: '',
         badgeStyle: `border-color: ${color} !important; color: ${color} !important;`,
         color: color
     };
