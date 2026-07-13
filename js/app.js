@@ -364,7 +364,8 @@ async function loadQuote() {
             const authorEl = document.getElementById('quote-author');
             if(textEl && authorEl) {
                 textEl.innerHTML = `"${window.formatTextContent(r.text)}"`;
-                authorEl.textContent = `- ${r.author}`;
+                const roleStr = r.role ? ` · ${r.role}` : '';
+                authorEl.textContent = `— ${r.author}${roleStr}`;
             }
         }
     } catch(e) {
