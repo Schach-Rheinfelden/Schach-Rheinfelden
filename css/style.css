@@ -637,7 +637,8 @@ h1, h2, h3, h4, .brand, .section-title {
 }
 
 .event-item {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
     border-radius: var(--border-radius);
     padding: 1.5rem;
@@ -645,11 +646,18 @@ h1, h2, h3, h4, .brand, .section-title {
     justify-content: space-between;
     align-items: stretch;
     transition: var(--transition);
+    box-shadow: var(--glass-highlight), 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.light-theme .event-item {
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
 }
 
 .event-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-4px);
     border-color: var(--accent-color);
+    box-shadow: var(--glass-highlight), 0 14px 32px rgba(0,0,0,0.22);
 }
 
 .event-date-box {
@@ -729,10 +737,6 @@ h1, h2, h3, h4, .brand, .section-title {
     margin-top: 2rem;
     padding-top: 2rem;
     border-top: 1px dashed var(--glass-border);
-}
-
-.location-info strong {
-    color: var(--accent-color);
 }
 
 .social-links {
@@ -1182,8 +1186,8 @@ h1, h2, h3, h4, .brand, .section-title {
     overflow: hidden;
     border-top-left-radius: var(--border-radius);
     border-top-right-radius: var(--border-radius);
-    border-bottom: 1px solid var(--glass-border);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    border-bottom: none;
+    box-shadow: none;
     position: relative;
     cursor: pointer;
 }
@@ -1681,5 +1685,115 @@ body.light-theme .tag-badge {
 
     .event-info {
         width: 100%;
+    }
+}
+
+/* --- Google Maps Circle Preview & Location Layout --- */
+.location-preview-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.35rem;
+    flex-wrap: wrap;
+    text-align: left;
+    margin-top: 1.5rem;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+}
+
+.location-text {
+    flex: 0 1 auto;
+    max-width: 340px;
+}
+
+.maps-circle-preview {
+    width: 118px;
+    height: 118px;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+    background: var(--surface-color);
+}
+
+.maps-circle-preview:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.45);
+    border-color: var(--text-secondary);
+}
+
+.maps-preview-iframe {
+    width: 200%;
+    height: 200%;
+    border: 0;
+    pointer-events: none;
+    transform: translate(-25%, -25%);
+    display: block;
+}
+
+/* Google Maps Modal */
+.maps-modal-content {
+    max-width: 780px !important;
+    width: 95% !important;
+    padding: 2rem !important;
+}
+
+.maps-modal-body {
+    margin: 1.25rem 0;
+    width: 100%;
+    height: 420px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.15);
+    background: var(--bg-color);
+}
+
+.maps-modal-iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
+
+.maps-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+}
+
+/* Mobile responsive for location map preview & modal */
+@media (max-width: 600px) {
+    .location-preview-wrapper {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.2rem;
+        padding: 1.25rem 1rem;
+    }
+    .location-text {
+        min-width: 100%;
+    }
+    .maps-modal-content {
+        padding: 1.5rem 1rem !important;
+    }
+    .maps-modal-body {
+        height: 310px;
+    }
+    .maps-modal-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .maps-modal-footer .btn {
+        width: 100%;
+        justify-content: center;
     }
 }
