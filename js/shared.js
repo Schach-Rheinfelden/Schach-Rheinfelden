@@ -147,11 +147,13 @@ window.parseFlexDate = function(dateStr) {
 };
 
 function getShortMonthDe(date) {
+    if (!date || typeof date.getMonth !== 'function' || isNaN(date.getMonth())) return '';
     const months = ['JAN', 'FEB', 'MÄR', 'APR', 'MAI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEZ'];
     return months[date.getMonth()] || '';
 }
 
 function getShortMonthTextDe(date) {
+    if (!date || typeof date.getMonth !== 'function' || isNaN(date.getMonth())) return '';
     const months = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'];
     return months[date.getMonth()] || '';
 }
@@ -361,7 +363,7 @@ window.formatEventModalDateHeader = function(event) {
 
     if (endStr) {
         const parsedStart = window.parseFlexDate(startStr);
-        const parsedEnd = window.parseFlexDate(endRaw);
+        const parsedEnd = window.parseFlexDate(endStr);
         if (parsedStart.date && parsedEnd.date) {
             const d1 = parsedStart.date;
             const d2 = parsedEnd.date;
@@ -457,6 +459,38 @@ window.fetchTextWithEncoding = async function(response) {
 };
 
 window.sourcesConfigCache = null;
+
+function parseCSVShared(text) {
+    if (!text) return [];
+    if (text.charCodeAt(0) === 0xFEFF) text = text.substring(1);
+    const result = [];
+    let row = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (inQuotes) {
+            if (char === '"') {
+                if (i + 1 < text.length && text[i+1] === '"') { current += '"'; i++; }
+                else { inQuotes = false; }
+            } else { current += char; }
+        } else {
+            if (char === '"') { inQuotes = true; }
+            else if (char === ';') { row.push(current); current = ''; }
+            else if (char === '\n') {
+                row.push(current);
+                if (row.length > 0 && !(row.length === 1 && row[0].trim() === '')) result.push(row);
+                row = []; current = '';
+            } else if (char === '\r') {}
+            else { current += char; }
+        }
+    }
+    if (current || row.length > 0) {
+        row.push(current);
+        if (row.length > 0 && !(row.length === 1 && row[0].trim() === '')) result.push(row);
+    }
+    return result;
+}
 
 window.loadSourcesConfig = async function() {
     if (window.sourcesConfigCache) return window.sourcesConfigCache;
@@ -818,51 +852,17 @@ async function initDynamicMenu() {
         const response = await window.fetchCSVSource('data/pages.csv');
         if (!response.ok) return;
         const text = await window.fetchTextWithEncoding(response);
+        const rows = parseCSVShared(text);
+        if (rows.length <= 1) return;
         
-        // Proper CSV row parser that respects quoted fields
-        function parseCSVRow(row) {
-            const fields = [];
-            let current = '';
-            let inQuotes = false;
-            for (let c = 0; c < row.length; c++) {
-                const ch = row[c];
-                if (inQuotes) {
-                    if (ch === '"') {
-                        if (c + 1 < row.length && row[c + 1] === '"') {
-                            current += '"';
-                            c++;
-                        } else {
-                            inQuotes = false;
-                        }
-                    } else {
-                        current += ch;
-                    }
-                } else {
-                    if (ch === '"') {
-                        inQuotes = true;
-                    } else if (ch === ';') {
-                        fields.push(current);
-                        current = '';
-                    } else {
-                        current += ch;
-                    }
-                }
-            }
-            fields.push(current);
-            return fields;
-        }
-        
-        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-        if (lines.length <= 1) return;
-        const headers = lines[0].split(';').map(h => h.trim());
-        
+        const headers = rows[0].map(h => (h || '').trim().replace(/^"|"$/g, ''));
         const isIndex = window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/') || window.location.pathname === '' || window.location.pathname.split('/').pop().indexOf('.html') === -1;
         
-        for (let i = 1; i < lines.length; i++) {
-            const parts = parseCSVRow(lines[i]);
+        for (let i = 1; i < rows.length; i++) {
+            const parts = rows[i];
             const page = {};
             headers.forEach((h, idx) => {
-                page[h] = parts[idx] ? parts[idx].trim() : '';
+                page[h] = parts[idx] !== undefined ? parts[idx].trim().replace(/^"|"$/g, '') : '';
             });
             
             if (page.id && page.title) {
