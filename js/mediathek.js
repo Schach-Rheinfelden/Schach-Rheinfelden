@@ -1,6 +1,15 @@
 let globalMediaData = [];
 let currentCategory = 'all';
 let currentType = 'all';
+let currentMediaLimit = 12;
+let savedMediaLimit = 12;
+const MEDIA_PAGE_STEP = 12;
+
+window.loadMoreMedia = function() {
+    currentMediaLimit += MEDIA_PAGE_STEP;
+    savedMediaLimit = currentMediaLimit;
+    renderMedia();
+};
 
 // Utilities
 window.parseDate = function(dateStr) {
@@ -162,7 +171,17 @@ function setupListeners() {
     const dateTo = document.getElementById('media-date-to');
     const dateReset = document.getElementById('media-date-reset');
     
-    [searchInput, dateFrom, dateTo].forEach(el => {
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            const val = searchInput.value.trim();
+            if (!val) {
+                currentMediaLimit = savedMediaLimit;
+            }
+            renderMedia();
+        });
+    }
+
+    [dateFrom, dateTo].forEach(el => {
         if(el) el.addEventListener('input', renderMedia);
     });
     
@@ -336,10 +355,15 @@ function renderMedia() {
 
     if (filtered.length === 0) {
         container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--text-secondary); padding: 2rem;">Keine passenden Medien gefunden.</div>';
+        const loadMoreEl = document.getElementById('media-load-more');
+        if (loadMoreEl) loadMoreEl.innerHTML = '';
         return;
     }
 
-    container.innerHTML = filtered.map(item => {
+    const isSearching = Boolean(searchVal);
+    const visibleMedia = isSearching ? filtered : filtered.slice(0, currentMediaLimit);
+
+    container.innerHTML = visibleMedia.map(item => {
         const dateString = window.parseDate(item.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const platformLabel = (item.emoji && item.emoji.trim() !== '') ? item.emoji.trim() : getPlatformIcon(item.type, item.url);
         
@@ -387,6 +411,15 @@ function renderMedia() {
         `;
     }).join('');
     
+    const loadMoreContainer = document.getElementById('media-load-more');
+    if (loadMoreContainer) {
+        if (!isSearching && currentMediaLimit < filtered.length) {
+            loadMoreContainer.innerHTML = `<button class="btn btn-secondary" onclick="loadMoreMedia()">Weitere Medien</button>`;
+        } else {
+            loadMoreContainer.innerHTML = '';
+        }
+    }
+
     // Trigger scroll animations for new elements
     setTimeout(() => {
         document.querySelectorAll('.fade-in-up').forEach(el => el.classList.add('visible'));

@@ -68,6 +68,24 @@ let currentCategory = 'Alle';
 let searchTerm = '';
 let dateFrom = '';
 let dateTo = '';
+let currentUpcomingLimit = 12;
+let savedUpcomingLimit = 12;
+let currentPastLimit = 12;
+let savedPastLimit = 12;
+let pastEventsExpanded = false;
+const EVENTS_PAGE_STEP = 12;
+
+window.loadMoreUpcomingEvents = function() {
+    currentUpcomingLimit += EVENTS_PAGE_STEP;
+    savedUpcomingLimit = currentUpcomingLimit;
+    renderEvents();
+};
+
+window.loadMorePastEvents = function() {
+    currentPastLimit += EVENTS_PAGE_STEP;
+    savedPastLimit = currentPastLimit;
+    renderEvents();
+};
 
 window.shareContent = function(title, text, customUrl) {
     const url = customUrl || window.location.href;
@@ -112,7 +130,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const searchInput = document.getElementById('events-search');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            searchTerm = e.target.value.toLowerCase();
+            searchTerm = e.target.value.toLowerCase().trim();
+            if (!searchTerm) {
+                currentUpcomingLimit = savedUpcomingLimit;
+                currentPastLimit = savedPastLimit;
+            }
             renderEvents();
         });
     }
@@ -471,28 +493,45 @@ function renderEvents() {
         `;
     }
 
+    const isSearching = Boolean(searchTerm);
     let html = '';
 
-    // Render upcoming event cards directly in the grid
-    if (upcoming.length > 0) {
-        html += upcoming.map(e => renderEventCard(e, false)).join('');
+    const visibleUpcoming = isSearching ? upcoming : upcoming.slice(0, currentUpcomingLimit);
+
+    if (visibleUpcoming.length > 0) {
+        html += visibleUpcoming.map(e => renderEventCard(e, false)).join('');
+        if (!isSearching && currentUpcomingLimit < upcoming.length) {
+            html += `
+            <div style="grid-column: 1 / -1; text-align: center; margin: 1.5rem 0;">
+                <button class="btn btn-secondary" onclick="loadMoreUpcomingEvents()">Weitere Termine</button>
+            </div>`;
+        }
     }
 
-    // Toggle button and past event cards (hidden by default)
     if (past.length > 0) {
+        const showPast = isSearching || pastEventsExpanded;
+        const iconRot = showPast ? 'rotate(180deg)' : 'rotate(0deg)';
+        const btnText = showPast ? 'Vergangene Termine ausblenden' : `Vergangene Termine anzeigen (${past.length})`;
+
         html += `
         <div style="grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; margin: 3rem 0 1.5rem 0; position: relative;">
             <div style="position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--glass-border), transparent); z-index: 1;"></div>
-            <button class="past-toggle-btn" onclick="togglePastEvents(${past.length})" id="past-toggle-btn" style="position: relative; z-index: 2; background: var(--bg-color); border: 1px solid var(--glass-border); color: var(--text-secondary); padding: 0.65rem 1.5rem; border-radius: 50px; font-size: 0.9rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
-                <span>Vergangene Termine anzeigen (${past.length})</span>
-                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="transition: transform 0.3s ease;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+            <button class="past-toggle-btn" onclick="togglePastEvents()" id="past-toggle-btn" style="position: relative; z-index: 2; background: var(--bg-color); border: 1px solid var(--glass-border); color: var(--text-secondary); padding: 0.65rem 1.5rem; border-radius: 50px; font-size: 0.9rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
+                <span>${btnText}</span>
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="transition: transform 0.3s ease; transform: ${iconRot};"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
             </button>
         </div>`;
-        html += past.map(e => {
-            const cardHtml = renderEventCard(e, true);
-            // Inject past-event-card class and display: none style
-            return cardHtml.replace('class="event-card ', 'class="event-card past-event-card ').replace('style="cursor: pointer; display: flex;', 'style="cursor: pointer; display: none;');
-        }).join('');
+
+        if (showPast) {
+            const visiblePast = isSearching ? past : past.slice(0, currentPastLimit);
+            html += visiblePast.map(e => renderEventCard(e, true)).join('');
+            if (!isSearching && currentPastLimit < past.length) {
+                html += `
+                <div style="grid-column: 1 / -1; text-align: center; margin: 1.5rem 0;">
+                    <button class="btn btn-secondary" onclick="loadMorePastEvents()">Weitere vergangene Termine</button>
+                </div>`;
+            }
+        }
     }
 
     if (upcoming.length === 0 && past.length === 0) {
@@ -504,25 +543,7 @@ function renderEvents() {
     container.innerHTML = html;
 }
 
-// Toggle past events visibility
-function togglePastEvents(count) {
-    const cards = document.querySelectorAll('.past-event-card');
-    const btn = document.getElementById('past-toggle-btn');
-    if (!cards.length) return;
-    
-    const isHidden = cards[0].style.display === 'none';
-    cards.forEach(card => {
-        card.style.display = isHidden ? 'flex' : 'none';
-    });
-
-    if (btn) {
-        const textSpan = btn.querySelector('span');
-        const icon = btn.querySelector('svg');
-        if (textSpan) {
-            textSpan.textContent = isHidden ? 'Vergangene Termine ausblenden' : `Vergangene Termine anzeigen (${count})`;
-        }
-        if (icon) {
-            icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-        }
-    }
-}
+window.togglePastEvents = function() {
+    pastEventsExpanded = !pastEventsExpanded;
+    renderEvents();
+};

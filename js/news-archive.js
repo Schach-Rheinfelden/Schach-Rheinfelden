@@ -77,6 +77,15 @@ let currentCategory = 'Alle';
 let searchTerm = '';
 let dateFrom = '';
 let dateTo = '';
+let currentNewsLimit = 12;
+let savedNewsLimit = 12;
+const NEWS_PAGE_STEP = 12;
+
+window.loadMoreNewsArchive = function() {
+    currentNewsLimit += NEWS_PAGE_STEP;
+    savedNewsLimit = currentNewsLimit;
+    renderNews();
+};
 
 const fallbackImages = [
     'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=600&q=80',
@@ -129,7 +138,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const searchInput = document.getElementById('news-search');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            searchTerm = e.target.value.toLowerCase();
+            searchTerm = e.target.value.toLowerCase().trim();
+            if (!searchTerm) {
+                currentNewsLimit = savedNewsLimit;
+            }
             renderNews();
         });
     }
@@ -252,10 +264,15 @@ function renderNews() {
 
     if (filteredNews.length === 0) {
         container.innerHTML = '<p class="loading">Keine News gefunden.</p>';
+        const loadMoreEl = document.getElementById('news-archive-load-more');
+        if (loadMoreEl) loadMoreEl.innerHTML = '';
         return;
     }
 
-    container.innerHTML = filteredNews.map(item => {
+    const isSearching = Boolean(searchTerm);
+    const visibleNews = isSearching ? filteredNews : filteredNews.slice(0, currentNewsLimit);
+
+    container.innerHTML = visibleNews.map(item => {
         const dateObj = window.parseDate(item.date);
         const dateString = dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const authorHTML = item.author ? ` &middot; 👤 ${item.author}` : '';
@@ -286,6 +303,15 @@ function renderNews() {
         </article>
         `;
     }).join('');
+
+    const loadMoreContainer = document.getElementById('news-archive-load-more');
+    if (loadMoreContainer) {
+        if (!isSearching && currentNewsLimit < filteredNews.length) {
+            loadMoreContainer.innerHTML = `<button class="btn btn-secondary" onclick="loadMoreNewsArchive()">Weitere News</button>`;
+        } else {
+            loadMoreContainer.innerHTML = '';
+        }
+    }
 }
 
 window.openNewsModal = function(id) {
