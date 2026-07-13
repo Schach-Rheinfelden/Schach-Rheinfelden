@@ -475,13 +475,47 @@ function renderInfo(info) {
         `).join('');
     }
 
-    // Location
+    // Location mit runder Google Maps Vorschau
     const locationContainer = document.getElementById('location-container');
     if (locationContainer && info.location) {
+        const rawName = info.location.name || '';
+        const rawAddress = info.location.address || '';
+
+        const cleanAddressStr = (str) => {
+            if (!str) return '';
+            let s = str.replace(/<br\s*[\/]?>/gi, ', ')
+                       .replace(/<\/?p>/gi, ', ')
+                       .replace(/(\r\n|\n|\r)/gm, ' ');
+            s = window.stripHtml ? window.stripHtml(s) : s.replace(/<[^>]*>?/gm, ' ');
+            return s.replace(/\s*,\s*,+/g, ', ').replace(/\s+/g, ' ').replace(/^,\s*|\s*,\s*$/g, '').trim();
+        };
+
+        const cleanName = cleanAddressStr(rawName);
+        const cleanAddr = cleanAddressStr(rawAddress);
+        // Suche in Google Maps AUSSCHLIESSLICH mit der Adresse (ohne location.name)
+        const queryStr = cleanAddr || cleanName;
+        const encodedQuery = encodeURIComponent(queryStr);
+        const escapedSubtitle = cleanAddr.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
         locationContainer.innerHTML = `
-            <p><strong>📍 Spielort:</strong><br>
-            ${info.location.name || ''}<br>
-            ${info.location.address || ''}</p>
+            <div class="location-preview-wrapper">
+                <div class="maps-circle-preview" title="Klick für große Google Maps Karte" onclick="openMapsModal('${encodedQuery}', '${escapedSubtitle}')">
+                    <iframe 
+                        src="https://maps.google.com/maps?q=${encodedQuery}&t=&z=14&ie=UTF8&iwloc=&output=embed" 
+                        class="maps-preview-iframe"
+                        title="Google Maps Vorschau Spielort"
+                        aria-hidden="true"
+                        tabindex="-1">
+                    </iframe>
+                </div>
+                <div class="location-text">
+                    <p style="margin: 0 0 0.35rem 0;"><strong style="color: var(--accent-color); font-size: 1.15rem;">📍 Spielort:</strong></p>
+                    <p style="margin: 0; line-height: 1.6; color: var(--text-primary);">
+                        ${rawName ? `<span style="color: var(--text-primary); font-weight: 600;">${rawName}</span><br>` : ''}
+                        <span>${rawAddress}</span>
+                    </p>
+                </div>
+            </div>
         `;
     }
 
@@ -1827,3 +1861,55 @@ window.onclick = function(event) {
         document.body.style.overflow = '';
     }
 }
+
+// 8. Google Maps Modal Logik
+window.openMapsModal = function(encodedQuery, locationName) {
+    const modal = document.getElementById('maps-modal');
+    if (!modal) return;
+
+    const subtitleEl = document.getElementById('maps-modal-subtitle');
+    const bodyEl = document.getElementById('maps-modal-body');
+    const extLink = document.getElementById('maps-external-link');
+
+    const queryStr = decodeURIComponent(encodedQuery || '');
+
+    if (subtitleEl) {
+        subtitleEl.textContent = locationName || queryStr;
+    }
+
+    if (bodyEl) {
+        bodyEl.innerHTML = `
+            <iframe 
+                src="https://maps.google.com/maps?q=${encodedQuery}&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                class="maps-modal-iframe" 
+                allowfullscreen 
+                loading="lazy" 
+                referrerpolicy="no-referrer-when-downgrade">
+            </iframe>
+        `;
+    }
+
+    if (extLink) {
+        extLink.href = `https://www.google.com/maps/search/?api=1&query=${encodedQuery}`;
+    }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeMapsModal = function() {
+    const modal = document.getElementById('maps-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    const bodyEl = document.getElementById('maps-modal-body');
+    if (bodyEl) bodyEl.innerHTML = '';
+};
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        window.closeMapsModal();
+    }
+});
