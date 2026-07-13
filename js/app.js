@@ -1704,11 +1704,6 @@ window.openEventModal = function(id) {
     if (!event) return;
 
     const modalBody = document.getElementById('event-modal-body');
-    const dateString = window.formatEventModalDateHeader ? window.formatEventModalDateHeader(event) : event.date;
-    const timeDisplay = window.formatEventTimeDisplay ? window.formatEventTimeDisplay(event) : (event.time ? `${event.time} Uhr` : '');
-    const authorHTML = event.author ? ` | 👤 ${event.author}` : '';
-
-
 
     const locationDisplay = event.locationUrl 
         ? `<a href="${event.locationUrl}" target="_blank" style="color: inherit; text-decoration: underline;">${event.location}</a>` 
