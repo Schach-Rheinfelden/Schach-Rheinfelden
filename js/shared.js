@@ -44,6 +44,102 @@ window.cleanMojibake = function(text) {
     return text;
 };
 
+// --- Flexible & Dynamic Rating Helpers ---
+window.parseCleanNumber = function(val) {
+    if (val === null || val === undefined || val === '-' || val === '') return 0;
+    const cleaned = val.toString().replace(/[="]/g, '').trim();
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+};
+
+window.getPlayerRatingVal = function(player, col) {
+    if (!player || !col) return 0;
+    const key = col.key || '';
+    const rawKey = col.rawKey || '';
+    let val = player[rawKey];
+    if (val === undefined) val = player[key];
+    if (val === undefined && key) val = player[key.toUpperCase()];
+    if (val === undefined && col.label) val = player[col.label];
+    return window.parseCleanNumber(val);
+};
+
+window.getRatingColumns = function(players) {
+    if (!players || !players.length) return [];
+    const firstP = players[0] || {};
+    const globalSettings = players.globalSettings || (firstP._globalSettings || {});
+    
+    const allKeys = players.headers || Object.keys(firstP);
+    const excludeRegex = /^id$|^teamid$|^teamids$|^team$|^name$|^avatar$|^image$|^role$|^title$|^titel$|^email$|^mail$|^schweiz$|^deutschland$|^telefon$|^phone$|^mobil$|^mobile$|^plz$|^zip$|^ort$|^city$|^adresse$|^address$|^_globalsettings$|^x$|^y$|^vx$|^vy$|^radius$|^isdragging$|^isexpanded$|^ishidden$|^el$|^playerdata$|^enddate$|^endtime$|^locationurl$|jahr|year|geb|birth|alter|age|nr|nummer|number/i;
+    
+    const ratingCols = [];
+    allKeys.forEach(rawKey => {
+        if (!rawKey) return;
+        const key = rawKey.toLowerCase();
+        if (excludeRegex.test(rawKey) || excludeRegex.test(key)) return;
+        if (globalSettings[key] === false || globalSettings[rawKey] === false || globalSettings[rawKey.toLowerCase()] === false) return;
+        
+        // Strictly only accept columns whose name explicitly indicates a rating or scoring system
+        const isKnownName = /elo|dwz|fide|ssb|rating|wertung|blitz|rapid|classic|zahl|nwz|punkte|score/i.test(rawKey);
+        if (!isKnownName) return;
+        
+        let numericCount = 0;
+        let maxVal = 0;
+        players.forEach(p => {
+            const val = window.parseCleanNumber(p[rawKey] !== undefined ? p[rawKey] : (p[key] !== undefined ? p[key] : (p[key.toUpperCase()] !== undefined ? p[key.toUpperCase()] : 0)));
+            if (val > 0) {
+                numericCount++;
+                if (val > maxVal) maxVal = val;
+            }
+        });
+        
+        if (numericCount > 0) {
+            if (!ratingCols.some(c => c.key === key)) {
+                let label = rawKey;
+                if (key === 'elo') label = 'ELO';
+                else if (key === 'dwz') label = 'DWZ';
+                const roundedMax = Math.ceil(Math.max(maxVal, 2000) / 100) * 100;
+                ratingCols.push({ key: key, rawKey: rawKey, label: label, max: roundedMax });
+            }
+        }
+    });
+    return ratingCols;
+};
+
+window.matchesPlayerFilter = function(player) {
+    if (!player) return false;
+    const anyConnected = Object.values(window.teamConnected || {}).some(v => v);
+    const query = (window.teamsSearchQuery || '').trim().toLowerCase();
+
+    // 1. Team Legend Check
+    const matchesTeam = !anyConnected || 
+        (player.teamIds && player.teamIds.some(tId => window.teamConnected[tId])) || 
+        window.teamConnected[player.teamId];
+    if (!matchesTeam) return false;
+
+    // 2. Search Query Check
+    const matchesSearch = !query || 
+        (player.name && player.name.toLowerCase().includes(query)) ||
+        (player.Team && player.Team.toLowerCase().includes(query)) ||
+        (player.team && player.team.toLowerCase().includes(query));
+    if (!matchesSearch) return false;
+
+    // 3. Rating Range Slider Check (Single active rating dropdown + dual thumb slider)
+    const filter = window.teamsRatingFilter;
+    if (filter && filter.colKey && filter.colKey !== 'none') {
+        const col = (window.playersRatingColumns || []).find(c => c.key === filter.colKey);
+        if (col) {
+            const val = window.getPlayerRatingVal(player, col);
+            if (val === 0) {
+                if (filter.min > 0) return false;
+            } else {
+                if (val < filter.min || val > filter.max) return false;
+            }
+        }
+    }
+
+    return true;
+};
+
 // --- Flexible Date Parsing ---
 // Supports: DD.MM.YYYY, DD.MM.YY, MM.YYYY, MM.YY, YYYY, YYYY-MM-DD, YY-MM-DD, YYYYMMDD, YYMMDD, German month texts, ?, TBD, empty
 window.parseFlexDate = function(dateStr) {
