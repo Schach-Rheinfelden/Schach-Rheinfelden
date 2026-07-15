@@ -1027,8 +1027,13 @@ async function renderTeams() {
             fetchCSV('./data/players.csv')
         ]);
 
+        playersRaw.forEach((p, i) => {
+            if (!p.id) p.id = 'player_' + i + '_' + Math.random().toString(36).substr(2, 6);
+        });
+
         // Spieler den Teams zuordnen
-        teams.forEach(team => {
+        teams.forEach((team, idx) => {
+            team.csvIndex = idx;
             team.players = playersRaw
                 .filter(p => p.Team && p.Team.split(',').map(t=>t.trim()).includes(team.name))
                 .map(p => {
@@ -1086,17 +1091,240 @@ async function renderTeams() {
             });
         });
         let allPlayers = Array.from(uniquePlayersMap.values());
+        allPlayers.headers = playersRaw.headers;
+        allPlayers.globalSettings = playersRaw.globalSettings;
 
         window.allTeamsData = teams;
         window.allPlayersData = allPlayers;
         window.teamsSearchQuery = '';
         window.teamsViewMode = 'floating';
 
+        window.showPlayerModal = function(p) {
+            if (!p) return;
+            const modal = document.getElementById('player-modal');
+            const modalBody = document.getElementById('player-modal-body');
+            if (!modal || !modalBody) return;
+
+            const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e2e8f0" /><circle cx="50" cy="38" r="18" fill="#94a3b8" /><path d="M -20 120 C -20 60, 120 60, 120 120 Z" fill="#94a3b8" /></svg>';
+            const mysteryAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
+            const avatarUrl = p.avatar || mysteryAvatar;
+            const settings = p._globalSettings || {};
+            const useFullName = settings.name !== false;
+            const displayName = useFullName ? p.name : window.getInitials(p.name);
+
+            const teamStr = p.Team || p.team || '';
+            const teamsList = teamStr.split(',').map(t => t.trim()).filter(Boolean);
+            const teamPinsHTML = teamsList.length > 0 ? `
+                <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin: -0.5rem 0 1.5rem 0;">
+                    ${teamsList.map(t => `
+                        <span style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.4rem 1rem; border-radius: 999px; background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(212, 175, 55, 0.08)); border: 1px solid var(--accent-color); color: var(--accent-color); font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.25); letter-spacing: 0.5px;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/></svg>
+                            ${t}
+                        </span>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            const seenKeys = new Set();
+            const gridItems = Object.entries(p).filter(([key, value]) => {
+                const lowerKey = key.toLowerCase();
+                if (['id', 'teamid', 'teamids', 'name', 'avatar', 'title', '_globalsettings', 'team', 'csvindex'].includes(lowerKey) || lowerKey.startsWith('_')) return false;
+                if (settings[lowerKey] === false) return false;
+                if (value === null || value === undefined || value.toString().trim() === '') return false;
+                if (seenKeys.has(lowerKey)) return false;
+                seenKeys.add(lowerKey);
+                return true;
+            });
+
+            const gridHTML = gridItems.length > 0 ? `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; text-align: left; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                    ${gridItems.map(([key, value]) => `
+                    <div>
+                        <span style="display: block; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">${key}</span>
+                        <strong style="font-size: 1.2rem; color: var(--text-primary);">${value}</strong>
+                    </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            modalBody.innerHTML = `
+                <img src="${avatarUrl}" alt="${displayName}" style="width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--accent-color); object-fit: cover; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);">
+                <h3 style="font-size: 2rem; color: var(--accent-color); margin-bottom: 0.5rem;">${displayName}</h3>
+                <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 1.5rem;">${p.title || 'Spieler'}</p>
+                ${teamPinsHTML}
+                ${gridHTML}
+            `;
+            modal.classList.remove('hidden');
+            if (!window.closePlayerModal) {
+                window.closePlayerModal = () => {
+                    document.getElementById('player-modal').classList.add('hidden');
+                };
+            }
+        };
+
+        window.openPlayerModalFromList = function(playerId) {
+            let player = (window.allPlayersData || []).find(p => p.id === playerId || p.name === playerId);
+            if (!player) {
+                for (const t of (window.allTeamsData || [])) {
+                    const found = (t.players || []).find(p => p.id === playerId || p.name === playerId);
+                    if (found) { player = found; break; }
+                }
+            }
+            if (player && window.showPlayerModal) {
+                window.showPlayerModal(player);
+            }
+        };
+
+        // 1. Dynamische Erkennung der echten Wertungszahlen (ELO, DWZ etc., abzüglich ausgeschlossener/ausgeblendeter Spalten)
+        window.playersRatingColumns = window.getRatingColumns(allPlayers);
+        window.teamsRatingFilter = { colKey: 'none', min: 0, max: 2400 };
+
+        // 2. Sortier-Dropdown für Listenansicht aufbauen
+        const sortContainer = document.getElementById('teams-sort-container');
+        const sortSelect = document.getElementById('teams-list-sort');
+        if (sortSelect) {
+            let sortHTML = `
+                <option value="name_asc">Alphabetisch (A - Z)</option>
+                <option value="name_desc">Alphabetisch (Z - A)</option>
+            `;
+            window.playersRatingColumns.forEach(col => {
+                sortHTML += `
+                    <option value="desc_${col.key}">Nach ${col.label} (Höchste zuerst)</option>
+                    <option value="asc_${col.key}">Nach ${col.label} (Niedrigste zuerst)</option>
+                `;
+            });
+            sortSelect.innerHTML = sortHTML;
+            sortSelect.addEventListener('change', (e) => {
+                window.teamsListSort = e.target.value;
+                if (window.updateTeamsListView) window.updateTeamsListView();
+            });
+        }
+
+        // 3. Schieberegler-Filter: Ein Dropdown zur Wahl der Zahl + ein Bereichsschieber mit 2 Punkten auf der Linie
+        const ratingFiltersDiv = document.getElementById('teams-rating-filters');
+        if (ratingFiltersDiv) {
+            if (window.playersRatingColumns.length === 0) {
+                ratingFiltersDiv.innerHTML = '';
+            } else {
+                let optionsHTML = `<option value="none">Kein Filter</option>`;
+                window.playersRatingColumns.forEach((col, idx) => {
+                    optionsHTML += `<option value="${col.key}">${col.label} filtern</option>`;
+                });
+
+                const firstCol = window.playersRatingColumns[0];
+                const defaultMax = firstCol ? firstCol.max : 2400;
+
+                ratingFiltersDiv.innerHTML = `
+                    <div class="glass-card" style="padding: 1rem 1.25rem; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.25rem;">
+                        <!-- links: Dropdown -->
+                        <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 220px;">
+                            <svg width="18" height="18" fill="none" stroke="var(--accent-color)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                            <label for="teams-rating-col-select" style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); white-space: nowrap;">Wertung filtern:</label>
+                            <select id="teams-rating-col-select" class="search-bar" style="margin-bottom: 0; width: auto; padding: 0.5rem 2.2rem 0.5rem 0.8rem; font-size: 0.9rem; cursor: pointer;">
+                                ${optionsHTML}
+                            </select>
+                        </div>
+
+                        <!-- rechts: 2-Punkt-Schieberegler auf einer Linie -->
+                        <div id="double-slider-wrapper" style="display: none; align-items: center; gap: 1rem; flex: 1; min-width: 280px; justify-content: flex-end; flex-wrap: wrap;">
+                            <span style="font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap;">Min: <strong id="filter-val-min" style="color: var(--text-primary);">0</strong></span>
+                            
+                            <!-- Die Spur mit 2 übereinander liegenden Thumbs -->
+                            <div style="position: relative; flex: 1; height: 28px; display: flex; align-items: center; max-width: 380px; min-width: 150px;">
+                                <div style="position: absolute; width: 100%; height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; z-index: 1;"></div>
+                                <div id="slider-track-highlight" style="position: absolute; height: 6px; background: var(--accent-color); border-radius: 3px; z-index: 2; left: 0%; width: 100%;"></div>
+                                <input type="range" id="slider-thumb-min" min="0" max="${defaultMax}" step="10" value="0" style="position: absolute; width: 100%; height: 6px; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; z-index: 3; margin: 0;">
+                                <input type="range" id="slider-thumb-max" min="0" max="${defaultMax}" step="10" value="${defaultMax}" style="position: absolute; width: 100%; height: 6px; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; z-index: 4; margin: 0;">
+                            </div>
+
+                            <span style="font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap;">Max: <strong id="filter-val-max" style="color: var(--text-primary);">${defaultMax}</strong></span>
+                            <span id="filter-range-badge" style="background: rgba(212, 175, 55, 0.18); color: var(--accent-color); padding: 0.2rem 0.65rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; white-space: nowrap;">0 - ${defaultMax}</span>
+                        </div>
+                    </div>
+                `;
+
+                const colSelect = document.getElementById('teams-rating-col-select');
+                const sliderWrapper = document.getElementById('double-slider-wrapper');
+                const thumbMin = document.getElementById('slider-thumb-min');
+                const thumbMax = document.getElementById('slider-thumb-max');
+                const trackHighlight = document.getElementById('slider-track-highlight');
+                const valMinEl = document.getElementById('filter-val-min');
+                const valMaxEl = document.getElementById('filter-val-max');
+                const badgeEl = document.getElementById('filter-range-badge');
+
+                const updateSliderVisuals = (minV, maxV, maxLimit) => {
+                    if (valMinEl) valMinEl.textContent = minV;
+                    if (valMaxEl) valMaxEl.textContent = maxV;
+                    if (badgeEl) badgeEl.textContent = `${minV} - ${maxV}`;
+
+                    const pctMin = maxLimit > 0 ? (minV / maxLimit) * 100 : 0;
+                    const pctMax = maxLimit > 0 ? (maxV / maxLimit) * 100 : 100;
+                    if (trackHighlight) {
+                        trackHighlight.style.left = `${pctMin}%`;
+                        trackHighlight.style.width = `${pctMax - pctMin}%`;
+                    }
+                };
+
+                const onSliderInput = () => {
+                    const activeCol = window.playersRatingColumns.find(c => c.key === window.teamsRatingFilter.colKey);
+                    const maxLimit = activeCol ? activeCol.max : 2400;
+
+                    let minV = parseInt(thumbMin.value, 10);
+                    let maxV = parseInt(thumbMax.value, 10);
+
+                    if (minV > maxV) {
+                        if (document.activeElement === thumbMin) {
+                            maxV = minV;
+                            thumbMax.value = maxV;
+                        } else {
+                            minV = maxV;
+                            thumbMin.value = minV;
+                        }
+                    }
+
+                    window.teamsRatingFilter.min = minV;
+                    window.teamsRatingFilter.max = maxV;
+                    updateSliderVisuals(minV, maxV, maxLimit);
+
+                    if (window.updateTeamsListView) window.updateTeamsListView();
+                };
+
+                thumbMin?.addEventListener('input', onSliderInput);
+                thumbMax?.addEventListener('input', onSliderInput);
+
+                colSelect?.addEventListener('change', (e) => {
+                    const selectedColKey = e.target.value;
+                    window.teamsRatingFilter.colKey = selectedColKey;
+
+                    if (selectedColKey === 'none') {
+                        if (sliderWrapper) sliderWrapper.style.display = 'none';
+                        window.teamsRatingFilter.min = 0;
+                        window.teamsRatingFilter.max = 2400;
+                    } else {
+                        const activeCol = window.playersRatingColumns.find(c => c.key === selectedColKey);
+                        const maxLimit = activeCol ? activeCol.max : 2400;
+
+                        if (sliderWrapper) sliderWrapper.style.display = 'flex';
+                        if (thumbMin) { thumbMin.max = maxLimit; thumbMin.value = 0; }
+                        if (thumbMax) { thumbMax.max = maxLimit; thumbMax.value = maxLimit; }
+
+                        window.teamsRatingFilter.min = 0;
+                        window.teamsRatingFilter.max = maxLimit;
+                        updateSliderVisuals(0, maxLimit, maxLimit);
+                    }
+
+                    if (window.updateTeamsListView) window.updateTeamsListView();
+                });
+            }
+        }
+
         const searchInput = document.getElementById('teams-search-input');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
                 window.teamsSearchQuery = e.target.value.trim().toLowerCase();
-                if (window.updateTeamsListView) window.updateTeamsListView();
+                if (window.updateTeamsListView && window.teamsViewMode === 'list') {
+                    window.updateTeamsListView();
+                }
             });
         }
 
@@ -1107,16 +1335,19 @@ async function renderTeams() {
 
         const switchView = (mode) => {
             window.teamsViewMode = mode;
+            const sortCont = document.getElementById('teams-sort-container');
             if (mode === 'floating') {
                 floatBtn?.classList.replace('btn-secondary', 'btn-primary');
                 listBtn?.classList.replace('btn-primary', 'btn-secondary');
                 if (floatingContainer) floatingContainer.style.display = 'block';
                 if (listContainer) listContainer.style.display = 'none';
+                if (sortCont) sortCont.style.display = 'none';
             } else {
                 listBtn?.classList.replace('btn-secondary', 'btn-primary');
                 floatBtn?.classList.replace('btn-primary', 'btn-secondary');
                 if (floatingContainer) floatingContainer.style.display = 'none';
                 if (listContainer) listContainer.style.display = 'block';
+                if (sortCont) sortCont.style.display = 'flex';
                 if (window.updateTeamsListView) window.updateTeamsListView();
             }
         };
@@ -1128,35 +1359,71 @@ async function renderTeams() {
             const container = document.getElementById('teams-list-view');
             if (!container) return;
 
-            const anyConnected = Object.values(window.teamConnected).some(v => v);
-            const query = (window.teamsSearchQuery || '').trim().toLowerCase();
-
             const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e2e8f0" /><circle cx="50" cy="38" r="18" fill="#94a3b8" /><path d="M -20 120 C -20 60, 120 60, 120 120 Z" fill="#94a3b8" /></svg>';
             const mysteryAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
 
             let html = '';
 
-            window.allTeamsData.forEach(team => {
-                if (anyConnected && !window.teamConnected[team.id]) return;
+            // Sortierung für die Spieler innerhalb der Teams
+            const sortMode = window.teamsListSort || 'name_asc';
+            let teamsToRender = [...window.allTeamsData];
 
-                const matchingPlayers = (team.players || []).filter(p => {
-                    if (!query) return true;
-                    const nameMatch = p.name && p.name.toLowerCase().includes(query);
-                    const teamMatch = (p.Team || p.team || '').toLowerCase().includes(query);
-                    return nameMatch || teamMatch;
-                });
+            // Festgelegte Reihenfolge der Mannschaften exakt und dynamisch aus der Reihenfolge in teams.csv (z. B. Rhy 1, Rhy 2, Rhy 3, Rhf 1, ...)
+            teamsToRender.sort((a, b) => {
+                const idxA = a.csvIndex !== undefined ? a.csvIndex : window.allTeamsData.indexOf(a);
+                const idxB = b.csvIndex !== undefined ? b.csvIndex : window.allTeamsData.indexOf(b);
+                return idxA - idxB;
+            });
 
+            teamsToRender.forEach(team => {
+                const matchingPlayers = (team.players || []).filter(p => window.matchesPlayerFilter(p));
                 if (matchingPlayers.length === 0) return;
 
-                // Alphabetisch nach Name sortieren
-                matchingPlayers.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+                // Sortierung der Spieler innerhalb des Teams
+                if (sortMode === 'name_asc') {
+                    matchingPlayers.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+                } else if (sortMode === 'name_desc') {
+                    matchingPlayers.sort((a, b) => (b.name || '').localeCompare(a.name || '', 'de'));
+                } else if (sortMode.startsWith('asc_')) {
+                    const key = sortMode.replace('asc_', '');
+                    const col = (window.playersRatingColumns || []).find(c => c.key === key) || { key: key };
+                    matchingPlayers.sort((a, b) => {
+                        const vA = window.getPlayerRatingVal(a, col);
+                        const vB = window.getPlayerRatingVal(b, col);
+                        if (vA === 0 && vB !== 0) return 1;
+                        if (vB === 0 && vA !== 0) return -1;
+                        return vA - vB || (a.name || '').localeCompare(b.name || '', 'de');
+                    });
+                } else if (sortMode.startsWith('desc_')) {
+                    const key = sortMode.replace('desc_', '');
+                    const col = (window.playersRatingColumns || []).find(c => c.key === key) || { key: key };
+                    matchingPlayers.sort((a, b) => {
+                        const vA = window.getPlayerRatingVal(a, col);
+                        const vB = window.getPlayerRatingVal(b, col);
+                        if (vA === 0 && vB !== 0) return 1;
+                        if (vB === 0 && vA !== 0) return -1;
+                        return vB - vA || (a.name || '').localeCompare(b.name || '', 'de');
+                    });
+                }
+
+                // Durchschnitt der echten Wertungszahlen berechnen
+                const averages = [];
+                (window.playersRatingColumns || []).forEach(col => {
+                    const validPlayers = matchingPlayers.filter(p => window.getPlayerRatingVal(p, col) > 0);
+                    if (validPlayers.length > 0) {
+                        const sum = validPlayers.reduce((acc, p) => acc + window.getPlayerRatingVal(p, col), 0);
+                        const avg = Math.round(sum / validPlayers.length);
+                        averages.push(`<span style="background: rgba(212, 175, 55, 0.18); color: var(--accent-color); padding: 0.2rem 0.65rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; border: 1px solid rgba(212, 175, 55, 0.3);">Ø ${col.label}: ${avg}</span>`);
+                    }
+                });
 
                 html += `
                     <div class="team-list-section" style="margin-bottom: 2.5rem; text-align: left;">
-                        <h3 style="font-size: 1.45rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1.25rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.6rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <h3 style="font-size: 1.45rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1.25rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.6rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                             <span style="width: 4px; height: 22px; background: var(--accent-color); border-radius: 2px; display: inline-block;"></span>
                             <span style="color: var(--accent-color);">${team.name}</span>
                             <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 400; margin-left: 0.2rem;">(${matchingPlayers.length} ${matchingPlayers.length === 1 ? 'Spieler' : 'Spieler'})</span>
+                            ${averages.length > 0 ? `<div style="margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap;">${averages.join('')}</div>` : ''}
                         </h3>
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem;">
                             ${matchingPlayers.map(player => {
@@ -1164,8 +1431,14 @@ async function renderTeams() {
                                 const settings = player._globalSettings || {};
                                 const useFullName = settings.name !== false;
                                 const displayName = useFullName ? player.name : window.getInitials(player.name);
-                                const eloStr = player.ELO || player.elo ? `ELO ${player.ELO || player.elo}` : '';
-                                const dwzStr = player.DWZ || player.dwz ? `DWZ ${player.DWZ || player.dwz}` : '';
+
+                                const ratingBadges = (window.playersRatingColumns || []).map(col => {
+                                    const v = window.getPlayerRatingVal(player, col);
+                                    if (v > 0) {
+                                        return `<span style="font-size: 0.75rem; background: rgba(212, 175, 55, 0.18); color: var(--accent-color); padding: 0.15rem 0.55rem; border-radius: 999px; font-weight: 600;">${col.label} ${v}</span>`;
+                                    }
+                                    return '';
+                                }).filter(Boolean).join('');
 
                                 return `
                                     <div class="glass-card player-list-card" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; cursor: pointer; transition: transform 0.2s, border-color 0.2s; border-radius: 12px; background: rgba(255,255,255,0.03);" onclick="openPlayerModalFromList('${player.id}')" onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='var(--accent-color)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--glass-border)';">
@@ -1174,8 +1447,7 @@ async function renderTeams() {
                                             <div style="font-weight: 700; font-size: 1.15rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.15rem;">${displayName}</div>
                                             <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.4rem;">${player.title || 'Spieler'}</div>
                                             <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                                                ${eloStr ? `<span style="font-size: 0.75rem; background: rgba(212, 175, 55, 0.18); color: var(--accent-color); padding: 0.15rem 0.55rem; border-radius: 999px; font-weight: 600;">${eloStr}</span>` : ''}
-                                                ${dwzStr ? `<span style="font-size: 0.75rem; background: rgba(255, 255, 255, 0.1); color: var(--text-primary); padding: 0.15rem 0.55rem; border-radius: 999px; font-weight: 600;">${dwzStr}</span>` : ''}
+                                                ${ratingBadges}
                                             </div>
                                         </div>
                                     </div>
@@ -1193,8 +1465,77 @@ async function renderTeams() {
             container.innerHTML = html;
         };
 
+        window.showPlayerModal = function(p) {
+            if (!p) return;
+            const modal = document.getElementById('player-modal');
+            const modalBody = document.getElementById('player-modal-body');
+            if (!modal || !modalBody) return;
+
+            const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e2e8f0" /><circle cx="50" cy="38" r="18" fill="#94a3b8" /><path d="M -20 120 C -20 60, 120 60, 120 120 Z" fill="#94a3b8" /></svg>';
+            const mysteryAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
+            const avatarUrl = p.avatar || mysteryAvatar;
+            const settings = p._globalSettings || {};
+            const useFullName = settings.name !== false;
+            const displayName = useFullName ? p.name : window.getInitials(p.name);
+
+            const teamStr = p.Team || p.team || '';
+            const teamsList = teamStr.split(',').map(t => t.trim()).filter(Boolean);
+            const teamPinsHTML = teamsList.length > 0 ? `
+                <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin: -0.5rem 0 1.5rem 0;">
+                    ${teamsList.map(t => `
+                        <span style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.4rem 1rem; border-radius: 999px; background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(212, 175, 55, 0.08)); border: 1px solid var(--accent-color); color: var(--accent-color); font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.25); letter-spacing: 0.5px;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/></svg>
+                            ${t}
+                        </span>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            const seenKeys = new Set();
+            const gridItems = Object.entries(p).filter(([key, value]) => {
+                const lowerKey = key.toLowerCase();
+                if (['id', 'teamid', 'teamids', 'name', 'avatar', 'title', '_globalsettings', 'team', 'csvindex'].includes(lowerKey) || lowerKey.startsWith('_')) return false;
+                if (settings[lowerKey] === false) return false;
+                if (value === null || value === undefined || value.toString().trim() === '') return false;
+                if (seenKeys.has(lowerKey)) return false;
+                seenKeys.add(lowerKey);
+                return true;
+            });
+
+            const gridHTML = gridItems.length > 0 ? `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; text-align: left; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                    ${gridItems.map(([key, value]) => `
+                    <div>
+                        <span style="display: block; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">${key}</span>
+                        <strong style="font-size: 1.2rem; color: var(--text-primary);">${value}</strong>
+                    </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            modalBody.innerHTML = `
+                <img src="${avatarUrl}" alt="${displayName}" style="width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--accent-color); object-fit: cover; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);">
+                <h3 style="font-size: 2rem; color: var(--accent-color); margin-bottom: 0.5rem;">${displayName}</h3>
+                <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 1.5rem;">${p.title || 'Spieler'}</p>
+                ${teamPinsHTML}
+                ${gridHTML}
+            `;
+            modal.classList.remove('hidden');
+            if (!window.closePlayerModal) {
+                window.closePlayerModal = () => {
+                    document.getElementById('player-modal').classList.add('hidden');
+                };
+            }
+        };
+
         window.openPlayerModalFromList = function(playerId) {
-            const player = (window.allPlayersData || []).find(p => p.id === playerId);
+            let player = (window.allPlayersData || []).find(p => p.id === playerId || p.name === playerId);
+            if (!player) {
+                for (const t of (window.allTeamsData || [])) {
+                    const found = (t.players || []).find(p => p.id === playerId || p.name === playerId);
+                    if (found) { player = found; break; }
+                }
+            }
             if (player && window.showPlayerModal) {
                 window.showPlayerModal(player);
             }
@@ -1366,67 +1707,8 @@ function initPhysicsEngine(cardsData, container, canvas) {
             
             if (Date.now() - pointerDownTime < 200) {
                 // Open Player Modal instead of expanding card
-                const p = draggedCard.playerData;
-                const modal = document.getElementById('player-modal');
-                const modalBody = document.getElementById('player-modal-body');
-                if (modal && modalBody) {
-                    const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e2e8f0" /><circle cx="50" cy="38" r="18" fill="#94a3b8" /><path d="M -20 120 C -20 60, 120 60, 120 120 Z" fill="#94a3b8" /></svg>';
-                    const mysteryAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
-                    const avatarUrl = p.avatar || mysteryAvatar;
-                    const settings = p._globalSettings || {};
-                    const useFullName = settings.name !== false;
-                    const displayName = useFullName ? p.name : window.getInitials(p.name);
-
-                    const teamStr = p.Team || p.team || '';
-                    const teamsList = teamStr.split(',').map(t => t.trim()).filter(Boolean);
-                    const teamPinsHTML = teamsList.length > 0 ? `
-                        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin: -0.5rem 0 1.5rem 0;">
-                            ${teamsList.map(t => `
-                                <span style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.4rem 1rem; border-radius: 999px; background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(212, 175, 55, 0.08)); border: 1px solid var(--accent-color); color: var(--accent-color); font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.25); letter-spacing: 0.5px;">
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/></svg>
-                                    ${t}
-                                </span>
-                            `).join('')}
-                        </div>
-                    ` : '';
-
-                    const seenKeys = new Set();
-                    const gridItems = Object.entries(p).filter(([key, value]) => {
-                        const lowerKey = key.toLowerCase();
-                        // Interne Keys und Team ausblenden (Team wird oben als Pins angezeigt)
-                        if (['id', 'teamid', 'teamids', 'name', 'avatar', 'title', '_globalsettings', 'team'].includes(lowerKey) || lowerKey.startsWith('_')) return false;
-                        if (settings[lowerKey] === false) return false;
-                        if (value === null || value === undefined || value.toString().trim() === '') return false;
-                        if (seenKeys.has(lowerKey)) return false;
-                        seenKeys.add(lowerKey);
-                        return true;
-                    });
-
-                    const gridHTML = gridItems.length > 0 ? `
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; text-align: left; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                            ${gridItems.map(([key, value]) => `
-                            <div>
-                                <span style="display: block; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">${key}</span>
-                                <strong style="font-size: 1.2rem; color: var(--text-primary);">${value}</strong>
-                            </div>
-                            `).join('')}
-                        </div>
-                    ` : '';
-
-                    modalBody.innerHTML = `
-                        <img src="${avatarUrl}" alt="${displayName}" style="width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--accent-color); object-fit: cover; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);">
-                        <h3 style="font-size: 2rem; color: var(--accent-color); margin-bottom: 0.5rem;">${displayName}</h3>
-                        <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 1.5rem;">${p.title || 'Spieler'}</p>
-                        ${teamPinsHTML}
-                        ${gridHTML}
-                    `;
-                    modal.classList.remove('hidden');
-                    // Add global close fn if not exists
-                    if (!window.closePlayerModal) {
-                        window.closePlayerModal = () => {
-                            document.getElementById('player-modal').classList.add('hidden');
-                        }
-                    }
+                if (window.showPlayerModal) {
+                    window.showPlayerModal(draggedCard.playerData);
                 }
             }
             draggedCard = null;
@@ -1507,7 +1789,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
         ctx.beginPath();
         
         // Render Team Tethers as a SINGLE CHAIN across all activated teams
-        const activePlayers = cardsData.filter(c => (c.playerData.teamIds && c.playerData.teamIds.some(tId => window.teamConnected[tId])) || window.teamConnected[c.teamId]);
+        const activePlayers = cardsData.filter(c => !c.isHidden && ((c.playerData.teamIds && c.playerData.teamIds.some(tId => window.teamConnected[tId])) || window.teamConnected[c.teamId]));
         
         for (let i = 0; i < activePlayers.length - 1; i++) {
             const card = activePlayers[i];
@@ -1593,25 +1875,20 @@ function initPhysicsEngine(cardsData, container, canvas) {
             }
         }
 
-        const anyConnected = Object.values(window.teamConnected).some(v => v);
-        const query = (window.teamsSearchQuery || '').trim().toLowerCase();
-
         cardsData.forEach(card => {
             card.el.style.transform = `translate(${card.x}px, ${card.y}px)`;
             
-            const matchesTeam = !anyConnected || (card.playerData.teamIds && card.playerData.teamIds.some(tId => window.teamConnected[tId])) || window.teamConnected[card.teamId];
-            const matchesSearch = !query || 
-                (card.playerData.name && card.playerData.name.toLowerCase().includes(query)) ||
-                (card.playerData.Team && card.playerData.Team.toLowerCase().includes(query));
-            
-            if (!matchesTeam || !matchesSearch) {
-                card.el.style.opacity = '0.2';
+            const matches = window.matchesPlayerFilter(card.playerData);
+            if (!matches) {
+                card.el.style.opacity = '0.15';
                 card.el.style.filter = 'grayscale(100%)';
                 card.el.style.pointerEvents = 'none';
+                card.isHidden = true;
             } else {
                 card.el.style.opacity = '1';
                 card.el.style.filter = 'none';
                 card.el.style.pointerEvents = 'auto';
+                card.isHidden = false;
             }
         });
 
