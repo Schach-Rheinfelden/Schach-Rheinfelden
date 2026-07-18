@@ -1,5 +1,6 @@
 
-window.parseDate = function(dateStr) {
+(function() {
+window.parseDate = window.parseDate || function(dateStr) {
     if (!dateStr) return new Date();
     if (dateStr.includes('.')) {
         const parts = dateStr.split('.');
@@ -174,6 +175,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    const archiveContainer = document.getElementById('news-archive-container');
+    if (!archiveContainer) return;
+
     try {
         globalNewsData = await fetchDataCSV('./data/news.csv');
         
@@ -186,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (error) {
         console.error('Fehler beim Laden der News:', error);
-        document.getElementById('news-archive-container').innerHTML = '<p>Fehler beim Laden des Archivs.</p>';
+        if (archiveContainer) archiveContainer.innerHTML = '<p>Fehler beim Laden des Archivs.</p>';
     }
 });
 
@@ -367,4 +371,5 @@ window.onclick = function(event) {
         });
         document.body.style.overflow = '';
     }
-}
+};
+})();
