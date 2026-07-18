@@ -21,7 +21,7 @@
     <meta property="og:site_name" content="Schach-Rheinfelden" />
 
     <!-- App Styles -->
-    <link rel="stylesheet" href="css/style.css?v=29">
+    <link rel="stylesheet" href="css/style.css?v=30">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,10 +31,13 @@
     <div id="top-banner" class="top-banner"></div>
     <header id="navbar" class="navbar">
         <nav class="container nav-content">
-            <a href="index.html" class="brand">
-                <span class="logo-icon">♞</span>
-                <span id="nav-club-name" class="brand-name">Lade...</span>
-            </a>
+            <div class="brand-wrapper">
+                <a href="index.html" class="brand">
+                    <span class="logo-icon">♞</span>
+                    <span id="nav-club-name" class="brand-name">Lade...</span>
+                </a>
+                <div id="nav-today-badge" class="nav-today-badge hidden"></div>
+            </div>
             <ul class="nav-links" id="nav-links">
                 <li><a href="#news">News</a></li>
                 <li><a href="#teams">Mannschaften</a></li>
@@ -312,7 +315,7 @@
     </div>
 
     <!-- App Logic -->
-    <script src="js/shared.js?v=20"></script>
-    <script src="js/app.js?v=41"></script>
+    <script src="js/shared.js?v=31"></script>
+    <script src="js/app.js?v=42"></script>
 </body>
 </html>
