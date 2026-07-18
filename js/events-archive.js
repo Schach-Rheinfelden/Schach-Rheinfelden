@@ -1,9 +1,6 @@
 
+(function() {
 // parseDate is now defined globally in shared.js (with flexible date support)
-
-
-
-
 
 function parseCSV(text) {
     if (text.charCodeAt(0) === 0xFEFF) text = text.substring(1);
@@ -167,6 +164,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    const archiveContainer = document.getElementById('events-archive-container');
+    if (!archiveContainer) return;
+
     try {
         globalEventsData = await fetchDataCSV('./data/events.csv');
         
@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (error) {
         console.error('Fehler beim Laden der Termine:', error);
-        document.getElementById('events-archive-container').innerHTML = '<p>Fehler beim Laden des Archivs.</p>';
+        if (archiveContainer) archiveContainer.innerHTML = '<p>Fehler beim Laden des Archivs.</p>';
     }
 });
 
@@ -547,3 +547,4 @@ window.togglePastEvents = function() {
     pastEventsExpanded = !pastEventsExpanded;
     renderEvents();
 };
+})();
