@@ -100,6 +100,9 @@ Wichtige Schlüssel:
 * `clubName` – Name des Vereins (`Schach Rheinfelden`)
 * `slogan` – Untertitel
 * `announcement` – Banner oben auf der Seite (*Intelligentes Verhalten:* Wenn ein Besucher das Banner über das `×`-Symbol schließt, bleibt es dauerhaft ausgeblendet. Erst wenn du in `info.csv` einen neuen Text für das Announcement veröffentlichst, erscheint das Banner automatisch wieder!)
+* `showTodayStatus` – Hauptschalter für die "Heute-Anzeige" in der Navigationsleiste oben (Erlaubte Werte: `ja` oder `nein`). Wenn auf `nein` gesetzt, wird die Anzeige ausgeblendet.
+* `todayOverride` – Optionale manuelle Überschreibung der Heute-Anzeige. Trage hier z. B. `geschlossen wegen Ferien` (wird automatisch rot) oder `Spezialtraining ab 18:00 Uhr` (wird automatisch grün) ein. Wenn das Feld leer bleibt, ermittelt das System vollautomatisch anhand des aktuellen Wochentags und der `training.n`-Einträge, ob heute Trainingszeiten stattfinden (z. B. `🟢 Heute: 17:00 - 19:00 Uhr`) oder nicht (`🔴 Heute: kein Schach`).
+* `training.1.group` / `training.1.time` bis `training.n.group` / `training.n.time` – Dynamische Trainingszeiten (z. B. `training.1.time;Dienstags, 17:00 - 19:00 Uhr`). Aus diesen Uhrzeiten bedient sich auch die automatische Heute-Anzeige!
 * `footer.copyright` – Überschreibt den Copyright-Text im Footer (z. B. `© 2027 Schach Rheinfelden. Alle Rechte vorbehalten.`)
 
 ---
