@@ -78,13 +78,32 @@ async function initApp() {
             const contentDiv = document.getElementById('dynamic-page-content');
             
             if (pageInfo) {
-                contentDiv.innerHTML = `
-                    <div class="glass-card fade-in-up" style="padding: 4rem 2rem;">
-                        <h1 class="section-title" style="margin-bottom: 2rem;">${pageInfo.title}</h1>
-                        <div class="news-text" style="font-size: 1.1rem;">${window.formatTextContent(pageInfo.content)}</div>
-                        <a href="index.html" class="btn btn-secondary" style="margin-top: 3rem;">Zurück zur Startseite</a>
-                    </div>
-                `;
+                const isCustomLayout = /<[a-z][\s\S]*>/i.test(pageInfo.content) || pageInfo.content.includes('tournament-hero-banner');
+                if (isCustomLayout) {
+                    contentDiv.innerHTML = `
+                        <div class="fade-in-up visible" style="padding: 1rem 0 3rem 0;">
+                            <h1 class="section-title" style="margin-bottom: 2rem;">${pageInfo.title}</h1>
+                            ${pageInfo.content}
+                            <div style="text-align: center; margin-top: 3.5rem; margin-bottom: 2rem;">
+                                <a href="index.html" class="btn btn-secondary">Zurück zur Startseite</a>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    contentDiv.innerHTML = `
+                        <div class="glass-card fade-in-up" style="padding: 4rem 2rem;">
+                            <h1 class="section-title" style="margin-bottom: 2rem;">${pageInfo.title}</h1>
+                            <div class="news-text" style="font-size: 1.1rem;">${window.formatTextContent(pageInfo.content)}</div>
+                            <a href="index.html" class="btn btn-secondary" style="margin-top: 3rem;">Zurück zur Startseite</a>
+                        </div>
+                    `;
+                }
+                Array.from(contentDiv.querySelectorAll('script')).forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
             } else {
                 contentDiv.innerHTML = `
                     <div class="glass-card fade-in-up" style="text-align: center; padding: 4rem 2rem;">
@@ -1963,7 +1982,7 @@ function initScrollAnimations() {
         });
     }, { threshold: 0.1 });
 
-    const elementsToAnimate = document.querySelectorAll('.glass-card, .section-title, .event-item, .hero-content, .member-card-wrapper, .gallery-item, .team-card, .flip-card');
+    const elementsToAnimate = document.querySelectorAll('.fade-in-up, .glass-card, .section-title, .event-item, .hero-content, .member-card-wrapper, .gallery-item, .team-card, .flip-card');
     elementsToAnimate.forEach(el => {
         el.classList.add('fade-in-up');
         observer.observe(el);
