@@ -61,7 +61,7 @@ function parsePlayerResult(resStr, isHeim) {
     if (cleaned === '0-1') return { punkte: isHeim ? 0 : 1.0, isForfait: false };
     if (cleaned === '0.5-0.5') return { punkte: 0.5, isForfait: false };
     if (cleaned === '+--' || cleaned === '+-+') return { punkte: isHeim ? 1.0 : 0, isForfait: true };
-    if (cleaned === '--+' || cleaned === '--+') return { punkte: isHeim ? 0 : 1.0, isForfait: true };
+    if (cleaned === '--+' || cleaned === '-+-') return { punkte: isHeim ? 0 : 1.0, isForfait: true };
 
     const parts = cleaned.split('-');
     if (parts.length !== 2) return null;
