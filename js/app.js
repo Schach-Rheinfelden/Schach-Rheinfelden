@@ -396,7 +396,7 @@ async function loadQuote() {
 function renderInfo(info) {
     // Header & Hero
     document.getElementById('nav-club-name').textContent = info.clubName;
-    if (window.initTodayStatusBadge) window.initTodayStatusBadge(info);
+    if (window.initTodayStatusBadge) window.initTodayStatusBadge(info, globalEventsData || []);
     
     // Check for custom hero media
     const heroSection = document.querySelector('.hero');
