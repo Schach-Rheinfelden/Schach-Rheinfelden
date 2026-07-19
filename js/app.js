@@ -117,6 +117,7 @@ async function initApp() {
         renderGallery();
         renderTeams();
         renderTournaments();
+        initGuestbook();
         initEventsFilter();
         renderEvents();
         renderMembers(membersData);
@@ -538,6 +539,19 @@ function renderInfo(info) {
             socialHTML += `<a href="${info.socialLinks.chesscom}" target="_blank" class="social-btn">♟️ Chess.com Team</a>`;
         }
         socialContainer.innerHTML = socialHTML;
+    }
+
+    // Gästebuch-Hauptschalter: guestbook.show = nein entfernt Sektion + Nav-Link komplett
+    const gbCfg = info.guestbook || info.Guestbook || {};
+    const gbShowRaw = String(gbCfg.show !== undefined && String(gbCfg.show).trim() !== '' ? gbCfg.show : 'ja').trim().toLowerCase();
+    window.guestbookEnabled = !(gbShowRaw === 'nein' || gbShowRaw === 'false' || gbShowRaw === 'no' || gbShowRaw === '0');
+    if (!window.guestbookEnabled) {
+        const gbSection = document.getElementById('guestbook');
+        if (gbSection) gbSection.remove();
+        document.querySelectorAll('.nav-links a[href$="#guestbook"]').forEach(a => {
+            const li = a.closest('li');
+            if (li) li.remove(); else a.remove();
+        });
     }
 
     // Kontakt Footer & Copyright (Global via shared helper)
@@ -1957,6 +1971,206 @@ async function renderTournaments() {
         console.error("Could not load tournaments", e);
         container.innerHTML = '<p>Keine Turnierdaten gefunden.</p>';
     }
+}
+
+// 4.7 Gästebuch (Testimonial-Carousel aus data/guestbook.csv)
+function escapeHtml(str) {
+    return String(str === undefined || str === null ? '' : str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+let guestbookStage = null;
+let guestbookEntries = [];
+let guestbookPool = [];
+let guestbookLast = null;
+let guestbookStarted = false;
+let guestbookPaused = false;
+
+async function initGuestbook() {
+    if (window.guestbookEnabled === false) return; // Hauptschalter in info.csv steht auf nein
+    guestbookStage = document.getElementById('guestbook-stage');
+    if (!guestbookStage) return;
+
+    initGuestbookForm();
+
+    try {
+        const entries = await fetchDataCSV('./data/guestbook.csv');
+        guestbookEntries = (entries || []).filter(e =>
+            (e.message || '').trim() !== '' &&
+            String(e.show === undefined || e.show === '' ? 'ja' : e.show).trim().toLowerCase() !== 'nein'
+        );
+    } catch (e) {
+        console.warn('Stimmen konnten nicht geladen werden:', e);
+        guestbookEntries = [];
+    }
+
+    if (guestbookEntries.length === 0) {
+        // Einladender Platzhalter im gleichen Look wie echte Stimmen
+        guestbookStage.innerHTML = `
+            <figure class="guestbook-card">
+                <div class="guestbook-quote-icon">♟️</div>
+                <blockquote class="guestbook-message">Hier ist noch Platz für deine Worte – sei die erste Stimme und hinterlasse uns einen Gruss!</blockquote>
+                <figcaption class="guestbook-meta">
+                    <span class="guestbook-author">Dein Schach Rheinfelden</span>
+                </figcaption>
+            </figure>`;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            const card = guestbookStage.querySelector('.guestbook-card');
+            if (card) card.classList.add('visible');
+        }));
+        return;
+    }
+    startGuestbookCarousel();
+}
+
+function guestbookNextEntry() {
+    if (guestbookPool.length === 0) {
+        guestbookPool = [...guestbookEntries];
+        // Fisher-Yates-Shuffle für zufällige Reihenfolge
+        for (let i = guestbookPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [guestbookPool[i], guestbookPool[j]] = [guestbookPool[j], guestbookPool[i]];
+        }
+        // Direkte Wiederholung beim Rundenwechsel vermeiden
+        if (guestbookPool.length > 1 && guestbookPool[guestbookPool.length - 1] === guestbookLast) {
+            guestbookPool.unshift(guestbookPool.pop());
+        }
+    }
+    guestbookLast = guestbookPool.pop();
+    return guestbookLast;
+}
+
+function renderGuestbookCard(e) {
+    if (!guestbookStage || !e) return;
+    let dateStr = '';
+    if ((e.date || '').trim()) {
+        const d = window.parseDate(e.date);
+        if (d && !isNaN(d.getTime())) {
+            dateStr = d.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
+    }
+    const meta = [escapeHtml((e.name || '').trim() || 'Anonym'), escapeHtml((e.origin || '').trim())].filter(Boolean).join(' · ');
+    guestbookStage.innerHTML = `
+        <figure class="guestbook-card">
+            <div class="guestbook-quote-icon">❝</div>
+            <blockquote class="guestbook-message">${escapeHtml(e.message)}</blockquote>
+            <figcaption class="guestbook-meta">
+                <span class="guestbook-author">${meta}</span>
+                ${dateStr ? `<span class="guestbook-date">${dateStr}</span>` : ''}
+            </figcaption>
+        </figure>`;
+    // Doppeltes rAF, damit die CSS-Transition sicher greift
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        const card = guestbookStage.querySelector('.guestbook-card');
+        if (card) card.classList.add('visible');
+    }));
+}
+
+// Sanft zur nächsten (oder einer bestimmten) Stimme überblenden
+function showNextGuestbookCard(entry) {
+    if (!guestbookStage) return;
+    const card = guestbookStage.querySelector('.guestbook-card');
+    if (card) {
+        card.classList.remove('visible');
+        setTimeout(() => renderGuestbookCard(entry || guestbookNextEntry()), 650);
+    } else {
+        renderGuestbookCard(entry || guestbookNextEntry());
+    }
+}
+
+function startGuestbookCarousel() {
+    if (guestbookStarted || !guestbookStage) return;
+    guestbookStarted = true;
+
+    guestbookStage.addEventListener('mouseenter', () => { guestbookPaused = true; });
+    guestbookStage.addEventListener('mouseleave', () => { guestbookPaused = false; });
+
+    renderGuestbookCard(guestbookNextEntry());
+
+    setInterval(() => {
+        if (guestbookPaused || document.hidden || guestbookEntries.length < 2) return;
+        showNextGuestbookCard();
+    }, 8000);
+}
+
+function initGuestbookForm() {
+    const form = document.getElementById('guestbook-form');
+    if (!form) return;
+
+    // Formular ein-/ausklappen
+    let formOpenedAt = 0; // Zeitstempel fürs Bot-Timing (Menschen brauchen > 3 s zum Schreiben)
+    const toggleBtn = document.getElementById('guestbook-toggle-btn');
+    const wrapper = document.getElementById('guestbook-form-wrapper');
+    if (toggleBtn && wrapper) {
+        toggleBtn.addEventListener('click', () => {
+            const isOpen = wrapper.style.display !== 'none';
+            wrapper.style.display = isOpen ? 'none' : 'block';
+            toggleBtn.textContent = isOpen ? '✍️ Nachricht schreiben' : 'Formular schliessen ✕';
+            if (!isOpen) {
+                formOpenedAt = Date.now();
+                wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                const msgField = form.querySelector('[name="gb-message"]');
+                if (msgField) msgField.focus();
+            }
+        });
+    }
+
+    form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const status = document.getElementById('guestbook-form-status');
+
+        // Bot-Schutz 1 (Honeypot): Bots füllen das unsichtbare Feld aus -> still verwerfen
+        const honeypot = form.querySelector('[name="website"]');
+        if (honeypot && honeypot.value.trim() !== '') { form.reset(); return; }
+        // Bot-Schutz 2 (Timing): Absenden < 3 s nach dem Aufklappen schafft kein Mensch
+        if (formOpenedAt && Date.now() - formOpenedAt < 3000) { form.reset(); return; }
+
+        const name = form.querySelector('[name="gb-name"]').value.trim();
+        const origin = form.querySelector('[name="gb-origin"]').value.trim();
+        const message = form.querySelector('[name="gb-message"]').value.trim();
+        if (!message) return;
+
+        const info = window.globalInfoData || {};
+        const cfg = info.guestbook || info.Guestbook || {};
+        const formUrl = String(cfg.formurl || cfg.formUrl || '').trim();
+
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) btn.disabled = true;
+
+        // 1. Sofort lokal anzeigen (optimistisches Feedback / Testmodus)
+        const todayStr = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const newEntry = { date: todayStr, name: name || 'Anonym', origin: origin, message: message };
+        guestbookEntries.push(newEntry);
+        if (!guestbookStarted) {
+            startGuestbookCarousel();
+            showNextGuestbookCard(newEntry);
+        } else {
+            showNextGuestbookCard(newEntry);
+        }
+
+        // 2. Falls konfiguriert: An Google (Apps Script / Formular) senden -> "sicherer Tresor"
+        if (formUrl) {
+            const fd = new FormData();
+            fd.append(String(cfg.fieldname || cfg.fieldName || 'name').trim(), name || 'Anonym');
+            if (origin) fd.append(String(cfg.fieldorigin || cfg.fieldOrigin || 'origin').trim(), origin);
+            fd.append(String(cfg.fieldmessage || cfg.fieldMessage || 'message').trim(), message);
+            // Honeypot mitsenden (bei Menschen leer) -> Apps Script kann direkt POSTende Bots aussortieren
+            fd.append('website', honeypot ? honeypot.value : '');
+            try {
+                // no-cors: Google Forms / Apps Script liefern keine CORS-Header, Versand klappt trotzdem
+                await fetch(formUrl, { method: 'POST', mode: 'no-cors', body: fd });
+                if (status) status.textContent = '💛 Vielen Dank! Deine Nachricht wurde übermittelt.';
+            } catch (err) {
+                if (status) status.textContent = 'Senden fehlgeschlagen – bitte versuche es später noch einmal.';
+            }
+        } else if (status) {
+            status.textContent = 'ℹ️ Testmodus: Noch keine Sende-URL (guestbook.formUrl in info.csv) konfiguriert – deine Nachricht ist nur in dieser Sitzung sichtbar.';
+        }
+
+        form.reset();
+        if (btn) btn.disabled = false;
+    });
 }
 
 // 5. Scroll-Animationen
