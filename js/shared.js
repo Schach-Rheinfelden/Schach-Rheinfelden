@@ -843,6 +843,38 @@ window.renderGlobalFooter = function(info) {
     }
 };
 
+window.getOrFetchEventsForBadge = async function() {
+    if (window.cachedEventsDataForBadge) return window.cachedEventsDataForBadge;
+    if (typeof globalEventsData !== 'undefined' && Array.isArray(globalEventsData) && globalEventsData.length > 0) {
+        window.cachedEventsDataForBadge = globalEventsData;
+        return window.cachedEventsDataForBadge;
+    }
+    let eventsData = [];
+    try {
+        const evResp = await window.fetchCSVSource('data/events.csv');
+        if (evResp.ok) {
+            const evText = await window.fetchTextWithEncoding(evResp);
+            const evRows = parseCSVShared(evText);
+            if (evRows.length > 1) {
+                for (let i = 1; i < evRows.length; i++) {
+                    const obj = {};
+                    evRows[0].forEach((h, idx) => {
+                        const header = (h || '').trim();
+                        if (header) {
+                            const val = (evRows[i][idx] || '').trim();
+                            obj[header] = val;
+                            obj[header.toLowerCase()] = val;
+                        }
+                    });
+                    eventsData.push(obj);
+                }
+            }
+        }
+    } catch(e) { /* Events optional für Badge */ }
+    window.cachedEventsDataForBadge = eventsData;
+    return eventsData;
+};
+
 window.loadGlobalInfoAndFooter = async function() {
     try {
         const response = await window.fetchCSVSource('data/info.csv');
@@ -872,7 +904,9 @@ window.loadGlobalInfoAndFooter = async function() {
         }
         window.globalInfoData = info;
         window.renderGlobalFooter(info);
-        window.initTodayStatusBadge(info);
+
+        const eventsData = await window.getOrFetchEventsForBadge();
+        window.initTodayStatusBadge(info, eventsData);
     } catch(e) {
         console.warn('Could not load global info for footer:', e);
     }
@@ -946,9 +980,55 @@ window.resolveStatusOrColor = function(statusRaw, textRaw) {
     return { isClosed: isClosedText, customColor: null };
 };
 
-window.initTodayStatusBadge = function(info) {
+// Hilfsfunktion: Prüft ob ein "kein Schach"-Event aus events.csv heute eine Trainingsgruppe betrifft
+window.findClosingEvent = function(training, eventsData) {
+    if (!eventsData || !Array.isArray(eventsData) || eventsData.length === 0) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const trainingCountry = (training.country || '').trim().toUpperCase();
+
+    for (const event of eventsData) {
+        const color = (event.color || '').trim().toLowerCase();
+        const title = (event.title || '').toLowerCase();
+
+        // 1. Ist es ein Ausfall-Event?
+        //    Primär: rote Farbe (red, rot, oder roter Hex-Code)
+        const isRed = color === 'red' || color === 'rot' ||
+            /^#(f00|ff0000|ef4444|dc2626|b91c1c|f43f5e|e11d48|e11|c00|900)$/i.test(event.color || '');
+        //    Fallback (nur ohne Color): Titel enthält "kein" UND "schach"
+        const isTextClosed = !color && title.includes('kein') && title.includes('schach');
+
+        if (!isRed && !isTextClosed) continue;
+
+        // 2. Betrifft es heute? (date <= heute <= endDate)
+        const startStr = (event.date || '').trim();
+        if (!startStr) continue;
+        const start = window.parseDate(startStr);
+        start.setHours(0, 0, 0, 0);
+        const endStr = (event.endDate || event.enddate || '').trim();
+        const end = endStr ? window.parseDate(endStr) : new Date(start);
+        end.setHours(0, 0, 0, 0);
+        if (today < start || today > end) continue;
+
+        // 3. Land-Matching: Event-Category vs. Training-Country
+        const categories = (event.category || '').split(',').map(c => c.trim().toUpperCase());
+        const eventCountry = categories.find(c => c === 'DE' || c === 'CH') || '';
+
+        // Kein Land im Event → betrifft ALLE Gruppen
+        // Land im Event → nur Gruppen mit gleichem Land
+        if (eventCountry && trainingCountry && eventCountry !== trainingCountry) continue;
+
+        return event; // Treffer!
+    }
+    return null;
+};
+
+window.initTodayStatusBadge = function(info, eventsData) {
     const badge = document.getElementById('nav-today-badge');
     if (!badge || !info) return;
+
+    const eventsList = eventsData || window.cachedEventsDataForBadge || (typeof globalEventsData !== 'undefined' ? globalEventsData : []);
+    if (eventsList && eventsList.length > 0) window.cachedEventsDataForBadge = eventsList;
 
     const showFlag = info.showTodayStatus !== undefined ? info.showTodayStatus : (info.showtodaystatus !== undefined ? info.showtodaystatus : (info.show_today_status !== undefined ? info.show_today_status : 'ja'));
     if (!window.isYes(showFlag)) {
@@ -1043,13 +1123,21 @@ window.initTodayStatusBadge = function(info) {
                 }
                 matchedTimes.push(oText);
             } else {
-                const timeStr = t.time || '';
-                const cleanedTime = window.stripHtml ? window.stripHtml(window.formatTextContent(timeStr)) : timeStr;
-                const timeMatch = cleanedTime.match(/(\d{1,2}(?::\d{2})?\s*[-–bis]+\s*\d{1,2}(?::\d{2})?(?:\s*Uhr)?|ab\s*\d{1,2}(?::\d{2})?(?:\s*Uhr)?)/i);
-                if (timeMatch) {
-                    matchedTimes.push(timeMatch[1].replace(/bis/i, '-').trim());
+                // NEU: Prüfe ob ein Event aus events.csv diese Trainingsgruppe heute als geschlossen markiert
+                const closingEvent = window.findClosingEvent(t, eventsList);
+                if (closingEvent) {
+                    hasOverrideForToday = true;
+                    isClosedOverride = true;
+                    matchedTimes.push('kein Schach');
                 } else {
-                    matchedTimes.push(cleanedTime.split('\n')[0].trim());
+                    const timeStr = t.time || '';
+                    const cleanedTime = window.stripHtml ? window.stripHtml(window.formatTextContent(timeStr)) : timeStr;
+                    const timeMatch = cleanedTime.match(/(\d{1,2}(?::\d{2})?\s*[-–bis]+\s*\d{1,2}(?::\d{2})?(?:\s*Uhr)?|ab\s*\d{1,2}(?::\d{2})?(?:\s*Uhr)?)/i);
+                    if (timeMatch) {
+                        matchedTimes.push(timeMatch[1].replace(/bis/i, '-').trim());
+                    } else {
+                        matchedTimes.push(cleanedTime.split('\n')[0].trim());
+                    }
                 }
             }
         }
@@ -1192,7 +1280,10 @@ async function initSharedInfo() {
             clubEl.textContent = cleanInfo.clubName;
         }
         
-        if (window.initTodayStatusBadge) window.initTodayStatusBadge(cleanInfo);
+        if (window.initTodayStatusBadge) {
+            const evData = window.getOrFetchEventsForBadge ? await window.getOrFetchEventsForBadge() : [];
+            window.initTodayStatusBadge(cleanInfo, evData);
+        }
     } catch(e) {}
 }
 
