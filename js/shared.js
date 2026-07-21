@@ -791,14 +791,26 @@ function parseCSVShared(text) {
     return result;
 }
 
+// Liest die Bankverbindungs-Daten aus info.csv (einfache Textzellen bank.ch / bank.de,
+// oder – rückwärtskompatibel – das alte HTML-Feld legal.bankverbindung).
+window.getBankInfo = function(info) {
+    const bank = (info && (info.bank || info.Bank)) || {};
+    const legal = (info && (info.legal || info.Legal)) || {};
+    return {
+        ch: String(bank.ch || bank.CH || '').trim(),
+        de: String(bank.de || bank.DE || '').trim(),
+        legacy: String(legal.bankverbindung || legal.Bankverbindung || (info && (info.bankverbindung || info.Bankverbindung)) || '').trim()
+    };
+};
+
 window.renderGlobalFooter = function(info) {
     if (!info) return;
 
     // Bankverbindungs-Link im Footer nur zeigen, wenn in info.csv Inhalt hinterlegt ist
-    const legal = info.legal || info.Legal || {};
-    const bankRaw = legal.bankverbindung || legal.Bankverbindung || info.bankverbindung || info.Bankverbindung || '';
+    const bankInfo = window.getBankInfo(info);
+    const hasBank = bankInfo.ch !== '' || bankInfo.de !== '' || bankInfo.legacy !== '';
     const bankSep = document.getElementById('footer-bank-sep');
-    if (bankSep) bankSep.style.display = (String(bankRaw).trim() !== '') ? 'inline' : 'none';
+    if (bankSep) bankSep.style.display = hasBank ? 'inline' : 'none';
 
     const contactContainer = document.getElementById('footer-contact-container');
     if (contactContainer && info.contact) {
@@ -1142,6 +1154,61 @@ window.initTodayStatusBadge = function(info, eventsData) {
     badge.classList.remove('hidden');
 };
 
+// Baut die Bankverbindungs-Anzeige (2 Umschalt-Knöpfe CH/DE) aus einfachen Textzellen.
+// Jede Zelle: 1. Zeile = Überschrift, weitere Zeilen = je eine Angabe (z. B. "IBAN: ...").
+window.buildBankHtml = function(info) {
+    const bankInfo = window.getBankInfo ? window.getBankInfo(info) : { ch: '', de: '', legacy: '' };
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const parseBlock = (raw) => {
+        if (!raw) return null;
+        const lines = String(raw).split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+        if (lines.length === 0) return null;
+        const title = esc(lines[0]);
+        const body = lines.slice(1).map(l => {
+            const idx = l.indexOf(':');
+            if (idx > 0) return `<strong>${esc(l.slice(0, idx + 1))}</strong> ${esc(l.slice(idx + 1).trim())}`;
+            return esc(l);
+        }).join('<br>');
+        return { title, body };
+    };
+
+    // Rückwärtskompatibel: altes HTML-Feld legal.bankverbindung direkt ausgeben
+    if (!bankInfo.ch && !bankInfo.de && bankInfo.legacy) {
+        return window.formatTextContent ? window.formatTextContent(bankInfo.legacy) : bankInfo.legacy;
+    }
+
+    const ch = parseBlock(bankInfo.ch);
+    const de = parseBlock(bankInfo.de);
+    if (!ch && !de) return '<p style="color: var(--text-secondary);">Zurzeit keine Bankverbindung hinterlegt.</p>';
+
+    const style = "<style>"
+        + ".bankbox input.bk-radio{position:absolute;left:-9999px;opacity:0;}"
+        + ".bankbox .bk-tabs{display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;}"
+        + ".bankbox .bk-tab{flex:1;min-width:120px;text-align:center;cursor:pointer;padding:0.6rem 0.9rem;border-radius:10px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);color:var(--text-secondary);font-weight:600;font-size:0.95rem;transition:all 0.2s;}"
+        + ".bankbox .bk-tab:hover{color:var(--text-primary);}"
+        + ".bankbox .bk-panel{display:none;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:12px;padding:1.1rem 1.25rem;}"
+        + ".bankbox #bk-ch:checked ~ .bk-tabs label[for=bk-ch],.bankbox #bk-de:checked ~ .bk-tabs label[for=bk-de]{background:var(--accent-color);color:#0b1220;border-color:var(--accent-color);}"
+        + ".bankbox #bk-ch:checked ~ .bk-panel.bk-ch,.bankbox #bk-de:checked ~ .bk-panel.bk-de{display:block;}"
+        + ".bankbox .bk-single{display:block;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:12px;padding:1.1rem 1.25rem;}"
+        + ".bankbox h3{margin:0 0 0.6rem 0;color:var(--accent-color);font-size:1.1rem;}"
+        + ".bankbox p{margin:0;line-height:1.75;font-size:0.98rem;color:var(--text-primary);}"
+        + "</style>";
+
+    // Nur ein Land hinterlegt -> kein Umschalter nötig
+    if (ch && !de) return `<div class="bankbox">${style}<div class="bk-single"><h3>${ch.title}</h3><p>${ch.body}</p></div></div>`;
+    if (de && !ch) return `<div class="bankbox">${style}<div class="bk-single"><h3>${de.title}</h3><p>${de.body}</p></div></div>`;
+
+    // Beide Länder -> Umschalt-Knöpfe (CSS-only, Standard: Schweiz)
+    return `<div class="bankbox">${style}`
+        + `<input class="bk-radio" type="radio" name="bkland" id="bk-ch" checked>`
+        + `<input class="bk-radio" type="radio" name="bkland" id="bk-de">`
+        + `<div class="bk-tabs"><label class="bk-tab" for="bk-ch">🇨🇭 Schweiz</label><label class="bk-tab" for="bk-de">🇩🇪 Deutschland</label></div>`
+        + `<div class="bk-panel bk-ch"><h3>${ch.title}</h3><p>${ch.body}</p></div>`
+        + `<div class="bk-panel bk-de"><h3>${de.title}</h3><p>${de.body}</p></div>`
+        + `</div>`;
+};
+
 window.openLegalModal = function(type) {
     const modal = document.getElementById('legal-modal');
     const title = document.getElementById('legal-modal-title');
@@ -1186,8 +1253,7 @@ window.openLegalModal = function(type) {
         }
     } else if (type === 'bankverbindung') {
         title.textContent = 'Bankverbindung';
-        const bank = legal.bankverbindung || legal.Bankverbindung || info.bankverbindung || info.Bankverbindung || '';
-        body.innerHTML = window.formatTextContent ? window.formatTextContent(bank) : bank;
+        body.innerHTML = window.buildBankHtml ? window.buildBankHtml(info) : '';
     }
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
