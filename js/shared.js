@@ -793,6 +793,13 @@ function parseCSVShared(text) {
 
 window.renderGlobalFooter = function(info) {
     if (!info) return;
+
+    // Bankverbindungs-Link im Footer nur zeigen, wenn in info.csv Inhalt hinterlegt ist
+    const legal = info.legal || info.Legal || {};
+    const bankRaw = legal.bankverbindung || legal.Bankverbindung || info.bankverbindung || info.Bankverbindung || '';
+    const bankSep = document.getElementById('footer-bank-sep');
+    if (bankSep) bankSep.style.display = (String(bankRaw).trim() !== '') ? 'inline' : 'none';
+
     const contactContainer = document.getElementById('footer-contact-container');
     if (contactContainer && info.contact) {
         let emails = info.contact.email ? info.contact.email.split(';').map(e => `<a href="mailto:${e.trim()}">${e.trim()}</a>`).join('<br>') : '';
@@ -1177,6 +1184,10 @@ window.openLegalModal = function(type) {
                 Diese Website nutzt keine Tracking-Tools. Lediglich Ihre Design-Einstellung (Hell-/Dunkel-Modus) wird lokal in Ihrem Browser (Local Storage) gespeichert.</p>
             `;
         }
+    } else if (type === 'bankverbindung') {
+        title.textContent = 'Bankverbindung';
+        const bank = legal.bankverbindung || legal.Bankverbindung || info.bankverbindung || info.Bankverbindung || '';
+        body.innerHTML = window.formatTextContent ? window.formatTextContent(bank) : bank;
     }
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
