@@ -223,7 +223,7 @@ async function fetchDataCSV(url) {
         headers.forEach((header, index) => {
             let val = row[index] !== undefined ? row[index].trim().replace(/^"|"$/g, '') : '';
             if (header === 'gallery' && val) {
-                val = window.parseGalleryString ? window.parseGalleryString(val) : val.split(',').map(s => s.trim()).filter(s => s);
+                val = window.parseGalleryString ? window.parseGalleryString(val) : [val];
             }
             if (header === 'id' && !isNaN(parseInt(val)) && String(parseInt(val)) === val) {
                 val = parseInt(val);
@@ -629,23 +629,35 @@ function renderNews() {
         const dateObj = window.parseDate(item.date);
         const dateString = dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const authorHTML = item.author ? ` &middot; 👤 ${item.author}` : '';
-        
-        const imgHTML = item.image && item.image.trim() !== "" 
-            ? `<div class="news-img" style="background-image: url('${item.image}')"></div>` 
-            : '';
-
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = window.formatTextContent(item.content);
-        const textContent = tempDiv.textContent || tempDiv.innerText || "";
 
         const colorStyles = window.getCardColorStyles ? window.getCardColorStyles(item.color || item.akzentfarbe || item.accentColor) : { cardStyle: '' };
+
+        let imgHTML = '';
+        let articleStyle = `cursor: pointer; ${colorStyles.cardStyle}`;
+        
+        const hasImage = item.image && item.image.trim() !== "";
+        const isBackground = String(item.bildAlsHintergrund || '').trim().toLowerCase();
+        const asBg = (isBackground === 'ja' || isBackground === 'true' || isBackground === '1' || isBackground === 'yes');
+
+        if (hasImage) {
+            if (asBg) {
+                const overlayTop = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 40%, rgba(11, 18, 32, 0.7))` : `rgba(11, 18, 32, 0.4)`;
+                const overlayBottom = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 20%, rgba(11, 18, 32, 0.95))` : `rgba(11, 18, 32, 0.95)`;
+                
+                articleStyle += ` background: linear-gradient(to bottom, ${overlayTop}, ${overlayBottom}), url('${item.image}') center/cover no-repeat !important; text-shadow: 0 2px 10px rgba(0,0,0,0.9); border: 1px solid var(--glass-border);`;
+            } else {
+                imgHTML = `<div class="news-img" style="background-image: url('${item.image}')"></div>`;
+            }
+        }
+
+        const textContent = window.stripHtml ? window.stripHtml(window.formatTextContent(item.content)) : "";
 
         const tagsHTML = item.category 
             ? `<div style="margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.35rem;">${item.category.split(',').map(tag => `<span class="tag-badge">🏷️ ${tag.trim()}</span>`).join('')}</div>` 
             : '';
 
         return `
-        <article class="glass-card news-card fade-in-up" onclick="openNewsModal(${item.id})" style="cursor: pointer; ${colorStyles.cardStyle}">
+        <article class="glass-card news-card fade-in-up" onclick="openNewsModal(${item.id})" style="${articleStyle}">
             ${imgHTML}
             <div class="news-content">
                 <span class="news-date" ${colorStyles.color ? `style="color: ${colorStyles.color}; font-weight: 600;"` : ''}>${dateString}${authorHTML}</span>
@@ -1161,7 +1173,7 @@ async function renderTeams() {
             const seenKeys = new Set();
             const gridItems = Object.entries(p).filter(([key, value]) => {
                 const lowerKey = key.toLowerCase();
-                if (['id', 'teamid', 'teamids', 'name', 'avatar', 'title', '_globalsettings', 'team', 'csvindex'].includes(lowerKey) || lowerKey.startsWith('_')) return false;
+                if (['id', 'teamid', 'teamids', 'name', 'avatar', 'title', 'rolle', '_globalsettings', 'team', 'csvindex'].includes(lowerKey) || lowerKey.startsWith('_')) return false;
                 if (settings[lowerKey] === false) return false;
                 if (value === null || value === undefined || value.toString().trim() === '') return false;
                 if (seenKeys.has(lowerKey)) return false;
@@ -1170,11 +1182,11 @@ async function renderTeams() {
             });
 
             const gridHTML = gridItems.length > 0 ? `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; text-align: left; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem; margin-top: 1rem;">
                     ${gridItems.map(([key, value]) => `
-                    <div>
-                        <span style="display: block; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">${key}</span>
-                        <strong style="font-size: 1.2rem; color: var(--text-primary);">${value}</strong>
+                    <div style="background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.08); padding: 1.25rem 1rem; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); backdrop-filter: blur(10px); transition: transform 0.3s, box-shadow 0.3s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)';">
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; letter-spacing: 1px; margin-bottom: 0.25rem;">${key}</span>
+                        <strong style="font-size: 1.5rem; color: var(--text-primary); font-family: 'Playfair Display', serif;">${value}</strong>
                     </div>
                     `).join('')}
                 </div>
@@ -1183,7 +1195,11 @@ async function renderTeams() {
             modalBody.innerHTML = `
                 <img src="${avatarUrl}" alt="${displayName}" style="width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--accent-color); object-fit: cover; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);">
                 <h3 style="font-size: 2rem; color: var(--accent-color); margin-bottom: 0.5rem;">${displayName}</h3>
-                <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 1.5rem;">${p.title || 'Spieler'}</p>
+                ${(p.rolle || p.title) ? `
+                <div style="display: flex; justify-content: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+                    ${(p.rolle || p.title).split(',').map(r => `<span style="font-size: 0.8rem; background: rgba(255,255,255,0.08); color: var(--text-secondary); padding: 0.2rem 0.6rem; border-radius: 999px; letter-spacing: 0.5px; border: 1px solid rgba(255,255,255,0.1);">${r.trim()}</span>`).join('')}
+                </div>
+                ` : '<div style="margin-bottom: 1.5rem;"></div>'}
                 ${teamPinsHTML}
                 ${gridHTML}
             `;
@@ -1478,7 +1494,11 @@ async function renderTeams() {
                                         <img src="${avatarUrl}" alt="${displayName}" style="width: 62px; height: 62px; border-radius: 50%; border: 2px solid var(--accent-color); object-fit: cover; flex-shrink: 0; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);">
                                         <div style="flex: 1; min-width: 0;">
                                             <div style="font-weight: 700; font-size: 1.15rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.15rem;">${displayName}</div>
-                                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.4rem;">${player.title || 'Spieler'}</div>
+                                            ${(player.rolle || player.title) ? `
+                                            <div style="display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+                                                ${(player.rolle || player.title).split(',').map(r => `<span style="font-size: 0.7rem; background: rgba(255,255,255,0.08); color: var(--text-secondary); padding: 0.15rem 0.5rem; border-radius: 999px; letter-spacing: 0.5px;">${r.trim()}</span>`).join('')}
+                                            </div>
+                                            ` : '<div style="margin-bottom: 0.2rem;"></div>'}
                                             <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
                                                 ${ratingBadges}
                                             </div>
@@ -1498,68 +1518,7 @@ async function renderTeams() {
             container.innerHTML = html;
         };
 
-        window.showPlayerModal = function(p) {
-            if (!p) return;
-            const modal = document.getElementById('player-modal');
-            const modalBody = document.getElementById('player-modal-body');
-            if (!modal || !modalBody) return;
 
-            const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e2e8f0" /><circle cx="50" cy="38" r="18" fill="#94a3b8" /><path d="M -20 120 C -20 60, 120 60, 120 120 Z" fill="#94a3b8" /></svg>';
-            const mysteryAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
-            const avatarUrl = p.avatar || mysteryAvatar;
-            const settings = p._globalSettings || {};
-            const useFullName = settings.name !== false;
-            const displayName = useFullName ? p.name : window.getInitials(p.name);
-
-            const teamStr = p.Team || p.team || '';
-            const teamsList = teamStr.split(',').map(t => t.trim()).filter(Boolean);
-            const teamPinsHTML = teamsList.length > 0 ? `
-                <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin: -0.5rem 0 1.5rem 0;">
-                    ${teamsList.map(t => `
-                        <span style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.4rem 1rem; border-radius: 999px; background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(212, 175, 55, 0.08)); border: 1px solid var(--accent-color); color: var(--accent-color); font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.25); letter-spacing: 0.5px;">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/></svg>
-                            ${t}
-                        </span>
-                    `).join('')}
-                </div>
-            ` : '';
-
-            const seenKeys = new Set();
-            const gridItems = Object.entries(p).filter(([key, value]) => {
-                const lowerKey = key.toLowerCase();
-                if (['id', 'teamid', 'teamids', 'name', 'avatar', 'title', '_globalsettings', 'team', 'csvindex'].includes(lowerKey) || lowerKey.startsWith('_')) return false;
-                if (settings[lowerKey] === false) return false;
-                if (value === null || value === undefined || value.toString().trim() === '') return false;
-                if (seenKeys.has(lowerKey)) return false;
-                seenKeys.add(lowerKey);
-                return true;
-            });
-
-            const gridHTML = gridItems.length > 0 ? `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; text-align: left; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                    ${gridItems.map(([key, value]) => `
-                    <div>
-                        <span style="display: block; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">${key}</span>
-                        <strong style="font-size: 1.2rem; color: var(--text-primary);">${value}</strong>
-                    </div>
-                    `).join('')}
-                </div>
-            ` : '';
-
-            modalBody.innerHTML = `
-                <img src="${avatarUrl}" alt="${displayName}" style="width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--accent-color); object-fit: cover; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);">
-                <h3 style="font-size: 2rem; color: var(--accent-color); margin-bottom: 0.5rem;">${displayName}</h3>
-                <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 1.5rem;">${p.title || 'Spieler'}</p>
-                ${teamPinsHTML}
-                ${gridHTML}
-            `;
-            modal.classList.remove('hidden');
-            if (!window.closePlayerModal) {
-                window.closePlayerModal = () => {
-                    document.getElementById('player-modal').classList.add('hidden');
-                };
-            }
-        };
 
         window.openPlayerModalFromList = function(playerId) {
             let player = (window.allPlayersData || []).find(p => p.id === playerId || p.name === playerId);
@@ -1947,12 +1906,17 @@ async function renderTournaments() {
                 buttonHTML = `<a href="${t.link}" target="_blank" class="btn btn-secondary" style="font-size: 0.9rem;" onclick="event.stopPropagation()">${linkText}</a>`;
             }
 
+            let frontStyle = `border: 1px solid var(--glass-border); border-radius: 12px; background: var(--surface-color);`;
+            if (t.image && t.image.trim() !== '') {
+                frontStyle += ` background: linear-gradient(to bottom, rgba(11, 18, 32, 0.4), rgba(11, 18, 32, 0.9)), url('${t.image}') center/cover no-repeat;`;
+            }
+
             return `
             <div class="flip-card" style="cursor: pointer;" onclick="openTournamentModal(${t.id})">
                 <div class="flip-card-inner">
                     <!-- Vorderseite -->
-                    <div class="flip-card-front" style="border: 1px solid var(--glass-border); border-radius: 12px; background: var(--surface-color);">
-                        <h3 style="color: var(--accent-color); font-size: 1.5rem; word-break: break-word; hyphens: auto; padding: 0 1rem; text-align: center; margin: 0;">${t.name}</h3>
+                    <div class="flip-card-front" style="${frontStyle}">
+                        <h3 style="color: var(--accent-color); font-size: 1.5rem; word-break: break-word; hyphens: auto; padding: 0 1rem; text-align: center; margin: 0; text-shadow: 0 2px 10px rgba(0,0,0,0.8);">${t.name}</h3>
                     </div>
                     <!-- Rückseite -->
                     <div class="flip-card-back" style="background: var(--surface-color); border: 1px solid var(--accent-color); border-radius: 12px; padding: 1rem;">
@@ -2336,7 +2300,10 @@ window.openTournamentModal = function(id) {
         `;
     }
 
+    const headerImgHTML = window.renderModalHeaderImage ? window.renderModalHeaderImage(tournament) : '';
+
     modalBody.innerHTML = `
+        ${headerImgHTML}
         <div style="font-size: 0.9rem; color: var(--accent-color); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">
             Turnier
         </div>
