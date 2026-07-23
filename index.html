@@ -43,14 +43,7 @@
                 <div id="nav-today-badge" class="nav-today-badge hidden"></div>
             </div>
             <ul class="nav-links" id="nav-links">
-                <li><a href="#news">News</a></li>
-                <li><a href="#teams">Mannschaften</a></li>
-                <li><a href="#tournaments">Turniere</a></li>
-                <li><a href="#events">Termine</a></li>
-                <li><a href="#training">Trainingszeiten</a></li>
-                <li><a href="#guestbook">Stimmen</a></li>
-                <li><a href="#members">Vorstand</a></li>
-                <li><a href="mediathek.html">Mediathek</a></li>
+                <!-- Menü wird dynamisch von shared.js (initDynamicMenu) generiert -->
             </ul>
             <div class="nav-controls">
                 <label class="theme-switch" title="Theme wechseln">
@@ -110,7 +103,64 @@
             </div>
         </section>
 
-        <!-- Teams Section (Floating Field) -->
+        <!-- Events & Training Split Section (Aktuelles) -->
+        <section class="section glass-section">
+            <div class="container split-container">
+                <!-- Termine -->
+                <div class="split-col" id="events">
+                    <h2 class="section-title">Anstehende <span class="accent">Termine</span></h2>
+                    <div id="events-filter" class="filter-bar" style="justify-content: flex-start; gap: 0.5rem; margin-bottom: 1.25rem;"></div>
+                    <button id="download-all-events-btn" class="btn btn-secondary" style="margin-bottom: 2rem; width: 100%; display: flex; justify-content: center; align-items: center; gap: 0.5rem; border-color: var(--accent-color); color: var(--accent-color);" onclick="downloadAllEvents()">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span>Alle Termine speichern</span>
+                    </button>
+                    <ul id="events-container" class="event-list">
+                        <!-- Events injected here -->
+                        <li class="loading" style="list-style: none;">Lade Termine...</li>
+                    </ul>
+                    
+                    <div style="margin-top: 2rem; text-align: center;">
+                        <a href="events-archive.html" class="btn btn-secondary">Weitere Termine</a>
+                    </div>
+                </div>
+
+                <!-- Training & Info -->
+                <div class="split-col" id="training">
+                    <h2 class="section-title">Unsere <span class="accent">Trainingszeiten</span></h2>
+                    <div class="glass-card fade-in-up" style="padding: 2rem; text-align: center;">
+                        <div id="training-container">
+                            <!-- Training info injected here -->
+                            <div class="loading">Lade Trainingszeiten...</div>
+                        </div>
+                        <div id="location-container" class="location-info" style="margin-top: 2rem; font-size: 1.1rem; color: var(--text-primary);">
+                            <!-- Location injected here -->
+                        </div>
+                        <div id="social-links-container" class="social-links" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                            <!-- Links injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Tournaments Section -->
+        <section id="tournaments" class="section glass-section">
+            <div class="container">
+                <h2 class="section-title">Aktuelle <span class="accent">Turniere</span></h2>
+                <div class="carousel-wrapper">
+                    <div id="tournaments-container" class="horizontal-scroll-container">
+                        <!-- Tournaments will be injected here -->
+                    </div>
+                    <div class="carousel-controls">
+                        <button class="carousel-btn prev-btn" aria-label="Zurück">&#10094;</button>
+                        <button class="carousel-btn next-btn" aria-label="Vor">&#10095;</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Teams Section (Floating Field) (Verein) -->
         <section id="teams" class="section glass-section">
             <div class="container">
                 <h2 class="section-title">Unsere <span class="accent">Mannschaften</span></h2>
@@ -153,62 +203,6 @@
             </div>
         </section>
 
-        <!-- Tournaments Section -->
-        <section id="tournaments" class="section glass-section">
-            <div class="container">
-                <h2 class="section-title">Aktuelle <span class="accent">Turniere</span></h2>
-                <div class="carousel-wrapper">
-                    <div id="tournaments-container" class="horizontal-scroll-container">
-                        <!-- Tournaments will be injected here -->
-                    </div>
-                    <div class="carousel-controls">
-                        <button class="carousel-btn prev-btn" aria-label="Zurück">&#10094;</button>
-                        <button class="carousel-btn next-btn" aria-label="Vor">&#10095;</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Events & Training Split Section -->
-        <section class="section glass-section">
-            <div class="container split-container">
-                <!-- Termine -->
-                <div class="split-col" id="events">
-                    <h2 class="section-title">Anstehende <span class="accent">Termine</span></h2>
-                    <div id="events-filter" class="filter-bar" style="justify-content: flex-start; gap: 0.5rem; margin-bottom: 1.25rem;"></div>
-                    <button id="download-all-events-btn" class="btn btn-secondary" style="margin-bottom: 2rem; width: 100%; display: flex; justify-content: center; align-items: center; gap: 0.5rem; border-color: var(--accent-color); color: var(--accent-color);" onclick="downloadAllEvents()">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        <span>Alle Termine speichern</span>
-                    </button>
-                    <ul id="events-container" class="event-list">
-                        <!-- Events injected here -->
-                        <li class="loading" style="list-style: none;">Lade Termine...</li>
-                    </ul>
-                    
-                    <div style="margin-top: 2rem; text-align: center;">
-                        <a href="events-archive.html" class="btn btn-secondary">Weitere Termine</a>
-                    </div>
-                </div>
-
-                <!-- Training & Info -->
-                <div class="split-col" id="training">
-                    <h2 class="section-title">Unsere <span class="accent">Trainingszeiten</span></h2>
-                    <div class="glass-card fade-in-up" style="padding: 2rem; text-align: center;">
-                        <div id="training-container">
-                            <!-- Training info injected here -->
-                            <div class="loading">Lade Trainingszeiten...</div>
-                        </div>
-                        <div id="location-container" class="location-info" style="margin-top: 2rem; font-size: 1.1rem; color: var(--text-primary);">
-                            <!-- Location injected here -->
-                        </div>
-                        <div id="social-links-container" class="social-links" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                            <!-- Links injected here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <!-- Stimmen-Section (Testimonial-Carousel, gespeist aus data/guestbook.csv / Google-Sheet-Blatt "guestbook") -->
         <section id="guestbook" class="section glass-section">
             <div class="container">
@@ -236,7 +230,7 @@
             </div>
         </section>
 
-        <!-- Members Section -->
+        <!-- Members Section (Verein) -->
         <section id="members" class="section glass-section">
             <div class="container">
                 <h2 class="section-title">Dein <span class="accent">Team</span></h2>
@@ -247,6 +241,7 @@
                 </div>
             </div>
         </section>
+
         </div>
     </main>
 
@@ -348,7 +343,7 @@
     </div>
 
     <!-- App Logic -->
-    <script src="js/shared.js?v=35"></script>
+    <script src="js/shared.js?v=36"></script>
     <script src="js/app.js?v=40"></script>
 </body>
 </html>
