@@ -625,7 +625,17 @@ window.fetchCSVSource = async function(localUrl) {
 
     const separator = localUrl.includes('?') ? '&' : '?';
     const finalLocalUrl = localUrl + (localUrl.includes('t=') ? '' : separator + 't=' + new Date().getTime());
-    return await fetch(finalLocalUrl, { cache: 'no-store' });
+    const fallbackRes = await fetch(finalLocalUrl, { cache: 'no-store' });
+    if (!fallbackRes.ok) return fallbackRes;
+    
+    // Check if the fallback response is actually an HTML error page
+    const contentType = fallbackRes.headers.get('content-type');
+    if (contentType && contentType.includes('text/html')) {
+        console.error(`[fetchCSVSource] Expected CSV but received HTML for ${localUrl}`);
+        throw new Error(`Expected CSV but received HTML for ${localUrl}`);
+    }
+    
+    return fallbackRes;
 };
 
 // Convert comma-separated CSV to semicolon-separated (for external CSV sources)
@@ -695,8 +705,9 @@ window.formatTextContent = function(text) {
 window.stripHtml = function(html) {
     if (!html) return '';
     const tmp = document.createElement("DIV");
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || "";
+    // Preserve spacing for block elements before extracting textContent
+    tmp.innerHTML = html.replace(/<br\s*[\/]?>|<\/p>|<\/div>|<\/li>|<\/h[1-6]>/gi, ' ');
+    return (tmp.textContent || tmp.innerText || "").trim().replace(/\s+/g, ' ');
 };
 
 window.formatImageUrl = function(imgUrl) {
@@ -708,6 +719,12 @@ window.formatImageUrl = function(imgUrl) {
     } else if (url.startsWith('assets/')) {
         url = './' + url;
     }
+    
+    // Vermeide Doppel-Encoding von bereits encodierten URLs (Cloudinary etc.)
+    if (url.startsWith('http') || url.includes('%')) {
+        return url;
+    }
+    
     return encodeURI(url);
 };
 
@@ -1353,36 +1370,178 @@ async function initDynamicMenu() {
     const navLinks = document.querySelector('.nav-links');
     if (!navLinks || navLinks.getAttribute('data-menu-loaded') === 'true') return;
     navLinks.setAttribute('data-menu-loaded', 'true');
+
+    // Determine if we're on the index page or a subpage
+    const path = window.location.pathname;
+    const filename = path.split('/').pop();
+    const isIndex = !filename || filename === '' || filename === 'index.html' || filename.indexOf('.html') === -1;
+    const prefix = isIndex ? '' : 'index.html';
+
+    // Clear any existing static menu items
+    navLinks.innerHTML = '';
+
+    // Define the complete menu structure with base items
+    const menuStructure = [
+        {
+            category: 'Aktuelles',
+            items: [
+                { title: 'News', href: prefix + '#news' },
+                { title: 'Termine', href: prefix + '#events' },
+                { title: 'Trainingszeiten', href: prefix + '#training' }
+            ]
+        },
+        {
+            category: 'Verein',
+            items: [
+                { title: 'Jugend', href: 'youth.html' },
+                { title: 'Mannschaften', href: prefix + '#teams' },
+                { title: 'Stimmen', href: prefix + '#guestbook' },
+                { title: 'Vorstand', href: prefix + '#members' }
+            ]
+        },
+        {
+            category: 'Turniere',
+            items: [
+                { title: 'Turnier-Übersicht', href: prefix + '#tournaments' }
+            ]
+        },
+        {
+            category: 'Mediathek',
+            isSingle: true,
+            href: 'mediathek.html'
+        }
+    ];
+
+    // Build the menu DOM
+    menuStructure.forEach(group => {
+        const li = document.createElement('li');
+
+        if (group.isSingle) {
+            // Single link, no dropdown
+            li.innerHTML = `<a href="${group.href}">${group.category}</a>`;
+        } else {
+            // Dropdown
+            li.className = 'dropdown';
+            li.setAttribute('data-category', group.category);
+            const itemsHTML = group.items.map(item =>
+                `<li><a href="${item.href}">${item.title}</a></li>`
+            ).join('');
+            li.innerHTML = `
+                <a href="javascript:void(0)" class="dropdown-toggle">${group.category} <span class="dropdown-arrow">▼</span></a>
+                <ul class="dropdown-menu">${itemsHTML}</ul>
+            `;
+        }
+        navLinks.appendChild(li);
+    });
+
+    // Attach click listeners for dropdown toggles (mobile support)
+    const attachDropdownListener = (toggle) => {
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            const parent = toggle.parentElement;
+            // Close other dropdowns
+            navLinks.querySelectorAll('.dropdown.open').forEach(d => {
+                if (d !== parent) d.classList.remove('open');
+            });
+            parent.classList.toggle('open');
+        });
+    };
+    navLinks.querySelectorAll('.dropdown-toggle').forEach(attachDropdownListener);
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.dropdown')) {
+            navLinks.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
+
+    // Close mobile menu when a regular link (not a dropdown toggle) is clicked
+    navLinks.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => {
+        link.addEventListener('click', () => {
+            navLinks.classList.remove('active');
+            const hamburger = document.getElementById('hamburger');
+            if (hamburger) hamburger.classList.remove('active');
+        });
+    });
+
+    // Load pages.csv to inject dynamic pages into the appropriate category dropdowns
     try {
         const response = await window.fetchCSVSource('data/pages.csv');
-        if (!response.ok) return;
+        if (!response || !response.ok) return;
         const text = await window.fetchTextWithEncoding(response);
         const rows = parseCSVShared(text);
         if (rows.length <= 1) return;
-        
+
         const headers = rows[0].map(h => (h || '').trim().replace(/^"|"$/g, ''));
-        const isIndex = window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/') || window.location.pathname === '' || window.location.pathname.split('/').pop().indexOf('.html') === -1;
-        
+
         for (let i = 1; i < rows.length; i++) {
             const parts = rows[i];
             const page = {};
             headers.forEach((h, idx) => {
                 page[h] = parts[idx] !== undefined ? parts[idx].trim().replace(/^"|"$/g, '') : '';
             });
-            
-            if (page.id && page.title) {
-                const showInMenuClean = page.showInMenu ? page.showInMenu.replace(/["']/g, '').toLowerCase() : '';
-                if (showInMenuClean !== 'nein' && showInMenuClean !== 'false') {
-                    const existingLinks = Array.from(navLinks.querySelectorAll('a')).map(a => a.textContent.trim());
-                    if (!existingLinks.includes(page.title)) {
-                        const li = document.createElement('li');
-                        let linkUrl = (page.url && page.url.trim() !== '') ? page.url.trim() : `?page=${page.id}`;
-                        if (!isIndex && linkUrl.startsWith('?')) {
-                            linkUrl = 'index.html' + linkUrl;
-                        }
-                        li.innerHTML = `<a href="${linkUrl}">${page.title}</a>`;
-                        navLinks.appendChild(li);
+
+            if (!page.id || !page.title) continue;
+
+            const showInMenuClean = page.showInMenu ? page.showInMenu.replace(/["']/g, '').toLowerCase() : '';
+            if (showInMenuClean === 'nein' || showInMenuClean === 'false') continue;
+
+            let linkUrl = (page.url && page.url.trim() !== '') ? page.url.trim() : `index.html?page=${page.id}`;
+            // On subpages, prefix relative ?page= links
+            if (!isIndex && linkUrl.startsWith('?')) {
+                linkUrl = 'index.html' + linkUrl;
+            }
+
+            // Check if this link or title already exists in the menu
+            let alreadyExists = false;
+            navLinks.querySelectorAll('a').forEach(a => {
+                const href = a.getAttribute('href');
+                const linkText = a.textContent.trim().replace(/ ▼$/, '');
+                if (href === linkUrl || linkText === page.title) {
+                    alreadyExists = true;
+                }
+            });
+            if (alreadyExists) continue;
+
+            const li = document.createElement('li');
+            li.innerHTML = `<a href="${linkUrl}">${page.title}</a>`;
+
+            // Close mobile menu on link click
+            li.querySelector('a').addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                const hamburger = document.getElementById('hamburger');
+                if (hamburger) hamburger.classList.remove('active');
+            });
+
+            const category = page.kategorie ? page.kategorie.trim() : '';
+            if (category) {
+                let dropdown = navLinks.querySelector(`.dropdown[data-category="${category}"]`);
+                if (!dropdown) {
+                    // Create a new dropdown for this category
+                    dropdown = document.createElement('li');
+                    dropdown.className = 'dropdown';
+                    dropdown.setAttribute('data-category', category);
+                    dropdown.innerHTML = `
+                        <a href="javascript:void(0)" class="dropdown-toggle">${category} <span class="dropdown-arrow">▼</span></a>
+                        <ul class="dropdown-menu"></ul>
+                    `;
+                    // Insert before Mediathek (last item) if possible
+                    const mediathekItem = navLinks.lastElementChild;
+                    if (mediathekItem) {
+                        navLinks.insertBefore(dropdown, mediathekItem);
+                    } else {
+                        navLinks.appendChild(dropdown);
                     }
+                    attachDropdownListener(dropdown.querySelector('.dropdown-toggle'));
+                }
+                const menu = dropdown.querySelector('.dropdown-menu');
+                if (menu) menu.appendChild(li);
+            } else {
+                const mediathekItem = Array.from(navLinks.children).find(el => el.querySelector('a') && el.querySelector('a').getAttribute('href') === 'mediathek.html');
+                if (mediathekItem) {
+                    navLinks.insertBefore(li, mediathekItem);
+                } else {
+                    navLinks.appendChild(li);
                 }
             }
         }
@@ -1476,7 +1635,7 @@ window.parseGalleryString = function(val) {
             if (/^(https?:\/\/|\.\/|\/|data:image|[a-zA-Z0-9_-]+\.(jpg|jpeg|png|gif|webp|svg))/i.test(chunk) || items.length === 0) {
                 items.push(chunk);
             } else {
-                items[items.length - 1] += ', ' + chunk;
+                items[items.length - 1] += ',' + rawChunks[i];
             }
         }
     }
