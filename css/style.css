@@ -1716,6 +1716,18 @@ body.light-theme .past-toggle-btn:hover {
     top: 36px;
 }
 
+.top-banner a {
+    color: inherit !important;
+    text-decoration: underline !important;
+    font-weight: 600 !important;
+}
+
+.top-banner a:hover {
+    color: inherit !important;
+    opacity: 0.8 !important;
+    text-decoration: none !important;
+}
+
 /* Global Search Bar */
 .search-bar {
     width: 100%;
