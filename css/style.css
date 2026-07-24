@@ -799,6 +799,22 @@ body.light-theme .glass-card:hover {
     border-color: rgba(212, 175, 55, 0.4);
 }
 
+/* Fix for cards completely covered by a background image */
+.glass-card.image-bg-card,
+.flip-card-front.image-bg-card {
+    border: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    /* Soft dark edge mask for subpixel gaps + outer shadow */
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.light-theme .glass-card.image-bg-card,
+body.light-theme .flip-card-front.image-bg-card {
+    /* Extreme faint edge mask + light outer shadow */
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08), 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+}
+
 body.light-theme .news-card,
 body.light-theme .media-card {
     background: #ffffff;
