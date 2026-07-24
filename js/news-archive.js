@@ -290,10 +290,13 @@
 
             if (hasImage) {
                 if (asBg) {
-                    const overlayTop = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 40%, rgba(11, 18, 32, 0.7))` : `rgba(11, 18, 32, 0.4)`;
-                    const overlayBottom = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 20%, rgba(11, 18, 32, 0.95))` : `rgba(11, 18, 32, 0.95)`;
+                    // Abdunklung identisch zur Startseite (js/app.js): oben fast klar,
+                    // ab ~40% Hoehe Anstieg auf den Wert, der weissen Text sicher traegt.
+                    const overlayTop = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 40%, rgba(11, 18, 32, 0.45))` : `rgba(11, 18, 32, 0.15)`;
+                    const overlayMid = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 30%, rgba(11, 18, 32, 0.6))` : `rgba(11, 18, 32, 0.35)`;
+                    const overlayBottom = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 20%, rgba(11, 18, 32, 0.88))` : `rgba(11, 18, 32, 0.85)`;
 
-                    articleStyle += ` background-color: transparent !important; background-image: linear-gradient(to bottom, ${overlayTop}, ${overlayBottom}), url('${item.image}') !important; background-position: center !important; background-size: cover !important; background-repeat: no-repeat !important;`;
+                    articleStyle += ` background-color: transparent !important; background-image: linear-gradient(to bottom, ${overlayTop} 0%, ${overlayMid} 40%, ${overlayBottom} 100%), url('${item.image}') !important; background-position: center !important; background-size: cover !important; background-repeat: no-repeat !important;`;
                 } else {
                     imgHTML = `<div class="news-img" style="background-image: url('${item.image}')"></div>`;
                 }
