@@ -2,7 +2,7 @@
  * shared.js - Gemeinsame Logik für alle Seiten (Startseite & Archive)
  */
 
-window.cleanMojibake = function(text) {
+window.cleanMojibake = function (text) {
     if (!text || typeof text !== 'string') return text;
     text = text
         .replace(/^\uFEFF/, '')
@@ -40,19 +40,19 @@ window.cleanMojibake = function(text) {
                 }
             }
         }
-    } catch(e) {}
+    } catch (e) { }
     return text;
 };
 
 // --- Flexible & Dynamic Rating Helpers ---
-window.parseCleanNumber = function(val) {
+window.parseCleanNumber = function (val) {
     if (val === null || val === undefined || val === '-' || val === '') return 0;
     const cleaned = val.toString().replace(/[="]/g, '').trim();
     const num = parseFloat(cleaned);
     return isNaN(num) ? 0 : num;
 };
 
-window.getPlayerRatingVal = function(player, col) {
+window.getPlayerRatingVal = function (player, col) {
     if (!player || !col) return 0;
     const key = col.key || '';
     const rawKey = col.rawKey || '';
@@ -63,25 +63,25 @@ window.getPlayerRatingVal = function(player, col) {
     return window.parseCleanNumber(val);
 };
 
-window.getRatingColumns = function(players) {
+window.getRatingColumns = function (players) {
     if (!players || !players.length) return [];
     const firstP = players[0] || {};
     const globalSettings = players.globalSettings || (firstP._globalSettings || {});
-    
+
     const allKeys = players.headers || Object.keys(firstP);
     const excludeRegex = /^id$|^teamid$|^teamids$|^team$|^name$|^avatar$|^image$|^role$|^title$|^titel$|^email$|^mail$|^schweiz$|^deutschland$|^telefon$|^phone$|^mobil$|^mobile$|^plz$|^zip$|^ort$|^city$|^adresse$|^address$|^_globalsettings$|^x$|^y$|^vx$|^vy$|^radius$|^isdragging$|^isexpanded$|^ishidden$|^el$|^playerdata$|^enddate$|^endtime$|^locationurl$|jahr|year|geb|birth|alter|age|nr|nummer|number/i;
-    
+
     const ratingCols = [];
     allKeys.forEach(rawKey => {
         if (!rawKey) return;
         const key = rawKey.toLowerCase();
         if (excludeRegex.test(rawKey) || excludeRegex.test(key)) return;
         if (globalSettings[key] === false || globalSettings[rawKey] === false || globalSettings[rawKey.toLowerCase()] === false) return;
-        
+
         // Strictly only accept columns whose name explicitly indicates a rating or scoring system
         const isKnownName = /elo|dwz|fide|ssb|rating|wertung|blitz|rapid|classic|zahl|nwz|punkte|score/i.test(rawKey);
         if (!isKnownName) return;
-        
+
         let numericCount = 0;
         let maxVal = 0;
         players.forEach(p => {
@@ -91,7 +91,7 @@ window.getRatingColumns = function(players) {
                 if (val > maxVal) maxVal = val;
             }
         });
-        
+
         if (numericCount > 0) {
             if (!ratingCols.some(c => c.key === key)) {
                 let label = rawKey;
@@ -105,19 +105,19 @@ window.getRatingColumns = function(players) {
     return ratingCols;
 };
 
-window.matchesPlayerFilter = function(player) {
+window.matchesPlayerFilter = function (player) {
     if (!player) return false;
     const anyConnected = Object.values(window.teamConnected || {}).some(v => v);
     const query = (window.teamsSearchQuery || '').trim().toLowerCase();
 
     // 1. Team Legend Check
-    const matchesTeam = !anyConnected || 
-        (player.teamIds && player.teamIds.some(tId => window.teamConnected[tId])) || 
+    const matchesTeam = !anyConnected ||
+        (player.teamIds && player.teamIds.some(tId => window.teamConnected[tId])) ||
         window.teamConnected[player.teamId];
     if (!matchesTeam) return false;
 
     // 2. Search Query Check
-    const matchesSearch = !query || 
+    const matchesSearch = !query ||
         (player.name && player.name.toLowerCase().includes(query)) ||
         (player.Team && player.Team.toLowerCase().includes(query)) ||
         (player.team && player.team.toLowerCase().includes(query));
@@ -142,7 +142,7 @@ window.matchesPlayerFilter = function(player) {
 
 // --- Flexible Date Parsing ---
 // Supports: DD.MM.YYYY, DD.MM.YY, MM.YYYY, MM.YY, YYYY, YYYY-MM-DD, YY-MM-DD, YYYYMMDD, YYMMDD, German month texts, ?, TBD, empty
-window.parseFlexDate = function(dateStr) {
+window.parseFlexDate = function (dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return { date: null, type: 'tbd' };
     const s = dateStr.trim();
     if (s === '?' || s.toLowerCase() === 'tbd' || s.toLowerCase() === 'tba' || s.toLowerCase() === 'offen') {
@@ -194,17 +194,17 @@ window.parseFlexDate = function(dateStr) {
         const parts = s.split('.');
         if (parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2 && (parts[2].length === 4 || parts[2].length === 2)) {
             const y = toFullYear(parts[2]);
-            return { date: new Date(`${y}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}T00:00:00`), type: 'full' };
+            return { date: new Date(`${y}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}T00:00:00`), type: 'full' };
         }
         if (parts.length === 2 && parts[0].length <= 2 && (parts[1].length === 4 || parts[1].length === 2)) {
             const y = toFullYear(parts[1]);
-            return { date: new Date(`${y}-${parts[0].padStart(2,'0')}-01T00:00:00`), type: 'month' };
+            return { date: new Date(`${y}-${parts[0].padStart(2, '0')}-01T00:00:00`), type: 'month' };
         }
     }
 
     // 3. YYYYMMDD (compact 8 digits) -> e.g. 20260911
     if (/^\d{8}$/.test(s)) {
-        return { date: new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`), type: 'full' };
+        return { date: new Date(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T00:00:00`), type: 'full' };
     }
 
     // 4. YYMMDD (compact 6 digits) -> e.g. 260911
@@ -254,7 +254,7 @@ function getShortMonthTextDe(date) {
     return months[date.getMonth()] || '';
 }
 
-window.formatFlexDate = function(dateStr) {
+window.formatFlexDate = function (dateStr) {
     const parsed = window.parseFlexDate(dateStr);
     if (parsed.type === 'tbd') return { weekday: '', day: '?', month: 'TBD', full: 'Datum noch offen', type: 'tbd' };
     if (parsed.type === 'year') {
@@ -279,7 +279,7 @@ window.formatFlexDate = function(dateStr) {
 };
 
 // Get a sortable date (for comparisons), with range start or TBD sorted properly
-window.parseDateSortable = function(dateStr) {
+window.parseDateSortable = function (dateStr) {
     if (!dateStr) return new Date('2099-12-31T00:00:00');
     let s = String(dateStr).trim();
     if (s.includes(' - ') || s.includes('–') || s.includes(' bis ')) {
@@ -310,7 +310,7 @@ function _resolveDateEnd(dateStr) {
 }
 
 // Get end date of range for past/upcoming check
-window.getEventEndDate = function(event) {
+window.getEventEndDate = function (event) {
     if (!event) return new Date('2099-12-31T23:59:59');
     const endRaw = (event.endDate || '').trim();
     const startRaw = (event.date || '').trim();
@@ -325,7 +325,7 @@ window.getEventEndDate = function(event) {
     return _resolveDateEnd(startRaw);
 };
 
-window.formatEventDateBox = function(event) {
+window.formatEventDateBox = function (event) {
     if (!event) return '';
     const startRaw = (event.date || '').trim();
     const endRaw = (event.endDate || '').trim();
@@ -384,7 +384,7 @@ window.formatEventDateBox = function(event) {
     }
 };
 
-window.formatEventTimeDisplay = function(event) {
+window.formatEventTimeDisplay = function (event) {
     if (!event) return '';
     const t = (event.time || '').trim();
     const et = (event.endTime || '').trim();
@@ -435,7 +435,7 @@ window.formatEventTimeDisplay = function(event) {
     return `🕒 bis ${et}${suffix}`;
 };
 
-window.formatEventModalDateHeader = function(event) {
+window.formatEventModalDateHeader = function (event) {
     if (!event) return '';
     const startRaw = (event.date || '').trim();
     const endRaw = (event.endDate || event.end_date || event.enddate || event.bis || '').trim();
@@ -483,7 +483,7 @@ window.formatEventModalDateHeader = function(event) {
     return startRaw;
 };
 
-window.formatEventMetaHeader = function(event) {
+window.formatEventMetaHeader = function (event) {
     if (!event) return '';
     const startRaw = (event.date || '').trim();
     const endRaw = (event.endDate || event.end_date || event.enddate || event.bis || '').trim();
@@ -526,12 +526,12 @@ window.formatEventMetaHeader = function(event) {
 };
 
 // Backward-compatible parseDate (used everywhere)
-window.parseDate = function(dateStr) {
+window.parseDate = function (dateStr) {
     const parsed = window.parseFlexDate(dateStr);
     return parsed.date || new Date();
 };
 
-window.fetchTextWithEncoding = async function(response) {
+window.fetchTextWithEncoding = async function (response) {
     if (!response) return '';
     // If already decoded (e.g. from external source), return text directly
     if (response._alreadyDecoded) {
@@ -557,7 +557,7 @@ window.sourcesConfigCache = null;
 
 // parseCSVShared ist weiter unten einmalig definiert (Function Hoisting).
 
-window.loadSourcesConfig = async function() {
+window.loadSourcesConfig = async function () {
     if (window.sourcesConfigCache) return window.sourcesConfigCache;
     window.sourcesConfigCache = {};
     try {
@@ -587,7 +587,7 @@ window.loadSourcesConfig = async function() {
     return window.sourcesConfigCache;
 };
 
-window.fetchCSVSource = async function(localUrl) {
+window.fetchCSVSource = async function (localUrl) {
     const cleanPath = localUrl.split('?')[0];
     const parts = cleanPath.split('/');
     const filename = parts[parts.length - 1];
@@ -627,19 +627,19 @@ window.fetchCSVSource = async function(localUrl) {
     const finalLocalUrl = localUrl + (localUrl.includes('t=') ? '' : separator + 't=' + new Date().getTime());
     const fallbackRes = await fetch(finalLocalUrl, { cache: 'no-store' });
     if (!fallbackRes.ok) return fallbackRes;
-    
+
     // Check if the fallback response is actually an HTML error page
     const contentType = fallbackRes.headers.get('content-type');
     if (contentType && contentType.includes('text/html')) {
         console.error(`[fetchCSVSource] Expected CSV but received HTML for ${localUrl}`);
         throw new Error(`Expected CSV but received HTML for ${localUrl}`);
     }
-    
+
     return fallbackRes;
 };
 
 // Convert comma-separated CSV to semicolon-separated (for external CSV sources)
-window._convertCommaCsvToSemicolon = function(text) {
+window._convertCommaCsvToSemicolon = function (text) {
     const lines = text.split(/\r?\n/);
     const result = [];
     for (const line of lines) {
@@ -679,11 +679,11 @@ window._convertCommaCsvToSemicolon = function(text) {
     return result.join('\n');
 };
 
-window.formatTextContent = function(text) {
+window.formatTextContent = function (text) {
     if (!text) return '';
     text = window.cleanMojibake(text);
     if (/<[a-z][\s\S]*>/i.test(text)) return text;
-    let formattedText = text.replace(/((?:https?:\/\/|www\.)[^\s]+)/g, function(url) {
+    let formattedText = text.replace(/((?:https?:\/\/|www\.)[^\s]+)/g, function (url) {
         let punctuation = '';
         if (url.match(/[.,;!?)]$/)) {
             punctuation = url.slice(-1);
@@ -702,7 +702,7 @@ window.formatTextContent = function(text) {
     return formattedText.replace(/\r?\n/g, '<br>');
 };
 
-window.stripHtml = function(html) {
+window.stripHtml = function (html) {
     if (!html) return '';
     const tmp = document.createElement("DIV");
     // Preserve spacing for block elements before extracting textContent
@@ -710,7 +710,7 @@ window.stripHtml = function(html) {
     return (tmp.textContent || tmp.innerText || "").trim().replace(/\s+/g, ' ');
 };
 
-window.formatImageUrl = function(imgUrl) {
+window.formatImageUrl = function (imgUrl) {
     if (!imgUrl || typeof imgUrl !== 'string') return '';
     let url = imgUrl.trim().replace(/\\/g, '/');
 
@@ -719,12 +719,12 @@ window.formatImageUrl = function(imgUrl) {
     } else if (url.startsWith('assets/')) {
         url = './' + url;
     }
-    
+
     // Vermeide Doppel-Encoding von bereits encodierten URLs (Cloudinary etc.)
     if (url.startsWith('http') || url.includes('%')) {
         return url;
     }
-    
+
     return encodeURI(url);
 };
 
@@ -734,12 +734,12 @@ function initTheme() {
 
     if (savedTheme === 'light') {
         document.body.classList.add('light-theme');
-        if(themeToggle) themeToggle.checked = true;
+        if (themeToggle) themeToggle.checked = true;
     }
-    
+
     if (themeToggle) {
         themeToggle.addEventListener('change', (e) => {
-            if(e.target.checked) {
+            if (e.target.checked) {
                 document.body.classList.add('light-theme');
                 localStorage.setItem('theme', 'light');
             } else {
@@ -753,8 +753,8 @@ function initTheme() {
 function initHamburger() {
     const hamburger = document.getElementById('hamburger');
     const navLinks = document.getElementById('nav-links');
-    if(hamburger && navLinks) {
-        hamburger.addEventListener('click', () => {
+    if (hamburger && navLinks) {
+        hamburger.addEventListener('click', (e) => {
             hamburger.classList.toggle('active');
             navLinks.classList.toggle('active');
             if (navLinks.classList.contains('active')) {
@@ -763,12 +763,21 @@ function initHamburger() {
                 document.body.style.overflow = '';
             }
         });
-        navLinks.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
+        navLinks.addEventListener('click', (e) => {
+            const anchor = e.target.closest('a');
+            if (anchor && !anchor.classList.contains('dropdown-toggle')) {
                 hamburger.classList.remove('active');
                 navLinks.classList.remove('active');
                 document.body.style.overflow = '';
-            });
+            }
+        });
+        // Menü schließen, wenn außerhalb geklickt wird
+        document.addEventListener('click', (e) => {
+            if (navLinks.classList.contains('active') && !navLinks.contains(e.target) && !hamburger.contains(e.target)) {
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+                document.body.style.overflow = '';
+            }
         });
     }
 }
@@ -786,14 +795,14 @@ function parseCSVShared(text) {
         const char = text[i];
         if (inQuotes) {
             if (char === '"') {
-                if (i + 1 < text.length && text[i+1] === '"') { current += '"'; i++; }
+                if (i + 1 < text.length && text[i + 1] === '"') { current += '"'; i++; }
                 else { inQuotes = false; }
             } else { current += char; }
         } else {
             if (char === '"') { inQuotes = true; }
             else if (char === ';') { row.push(current); current = ''; }
             else if (char === '\n' || char === '\r') {
-                if (char === '\r' && i + 1 < text.length && text[i+1] === '\n') i++;
+                if (char === '\r' && i + 1 < text.length && text[i + 1] === '\n') i++;
                 row.push(current);
                 if (row.some(field => field.trim() !== '')) result.push(row);
                 row = [];
@@ -810,7 +819,7 @@ function parseCSVShared(text) {
 
 // Liest die Bankverbindungs-Daten aus info.csv (einfache Textzellen bank.ch / bank.de,
 // oder – rückwärtskompatibel – das alte HTML-Feld legal.bankverbindung).
-window.getBankInfo = function(info) {
+window.getBankInfo = function (info) {
     const bank = (info && (info.bank || info.Bank)) || {};
     const legal = (info && (info.legal || info.Legal)) || {};
     return {
@@ -820,7 +829,7 @@ window.getBankInfo = function(info) {
     };
 };
 
-window.renderGlobalFooter = function(info) {
+window.renderGlobalFooter = function (info) {
     if (!info) return;
 
     // Bankverbindungs-Link im Footer nur zeigen, wenn in info.csv Inhalt hinterlegt ist
@@ -851,7 +860,7 @@ window.renderGlobalFooter = function(info) {
     }
 };
 
-window.getOrFetchEventsForBadge = async function() {
+window.getOrFetchEventsForBadge = async function () {
     if (window.cachedEventsDataForBadge) return window.cachedEventsDataForBadge;
     if (typeof globalEventsData !== 'undefined' && Array.isArray(globalEventsData) && globalEventsData.length > 0) {
         window.cachedEventsDataForBadge = globalEventsData;
@@ -878,12 +887,12 @@ window.getOrFetchEventsForBadge = async function() {
                 }
             }
         }
-    } catch(e) { /* Events optional für Badge */ }
+    } catch (e) { /* Events optional für Badge */ }
     window.cachedEventsDataForBadge = eventsData;
     return eventsData;
 };
 
-window.loadGlobalInfoAndFooter = async function() {
+window.loadGlobalInfoAndFooter = async function () {
     try {
         const response = await window.fetchCSVSource('data/info.csv');
         if (!response.ok) return;
@@ -915,12 +924,12 @@ window.loadGlobalInfoAndFooter = async function() {
 
         const eventsData = await window.getOrFetchEventsForBadge();
         window.initTodayStatusBadge(info, eventsData);
-    } catch(e) {
+    } catch (e) {
         console.warn('Could not load global info for footer:', e);
     }
 };
 
-window.formatCompactTodayTime = function(text) {
+window.formatCompactTodayTime = function (text) {
     if (!text) return '';
     let t = String(text).trim();
 
@@ -946,13 +955,13 @@ window.formatCompactTodayTime = function(text) {
 };
 
 // Kanonische Version (einheitlich auf allen Seiten): leer/fehlend = false.
-window.isYes = function(val) {
+window.isYes = function (val) {
     if (val === undefined || val === null || String(val).trim() === '') return false;
     const str = String(val).trim().toLowerCase();
     return str === 'ja' || str === 'j' || str === 'yes' || str === 'y' || str === '1' || str === 'true' || str === 'x' || str === 'ch' || str === 'de';
 };
 
-window.resolveStatusOrColor = function(statusRaw, textRaw) {
+window.resolveStatusOrColor = function (statusRaw, textRaw) {
     const s = String(statusRaw || '').trim();
     const sLower = s.toLowerCase();
     const tLower = String(textRaw || '').trim().toLowerCase();
@@ -968,10 +977,10 @@ window.resolveStatusOrColor = function(statusRaw, textRaw) {
         const parsedColor = window.parseEventColor ? window.parseEventColor(s) : s;
         if (parsedColor) {
             const isRedColor = /^(#f00|#ff0000|#ef4444|#dc2626|#b91c1c|#f43f5e|#e11d48|#e11|#c00|#900|crimson|darkred|firebrick|tomato|rgb\(\s*25[0-5]\s*,\s*\d+\s*,\s*\d+\s*\))$/i.test(parsedColor) ||
-                               (sLower.includes('red') && !sLower.includes('green'));
-            
+                (sLower.includes('red') && !sLower.includes('green'));
+
             const isGreenColor = /^(#0f0|#00ff00|#10b981|#059669|#22c55e|#16a34a|#15803d|rgb\(\s*\d+\s*,\s*(?:1[0-9]{2}|2[0-5][0-9]|[5-9][0-9])\s*,\s*\d+\s*\)|lime|forestgreen)$/i.test(parsedColor) ||
-                                 (sLower.includes('green') && !sLower.includes('red'));
+                (sLower.includes('green') && !sLower.includes('red'));
 
             let isClosed = isRedColor;
             if (!isRedColor && !isGreenColor) {
@@ -990,7 +999,7 @@ window.resolveStatusOrColor = function(statusRaw, textRaw) {
 };
 
 // Hilfsfunktion: Prüft ob ein "kein Schach"-Event aus events.csv heute eine Trainingsgruppe betrifft
-window.findClosingEvent = function(training, eventsData) {
+window.findClosingEvent = function (training, eventsData) {
     if (!eventsData || !Array.isArray(eventsData) || eventsData.length === 0) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1032,7 +1041,7 @@ window.findClosingEvent = function(training, eventsData) {
     return null;
 };
 
-window.initTodayStatusBadge = function(info, eventsData) {
+window.initTodayStatusBadge = function (info, eventsData) {
     const badge = document.getElementById('nav-today-badge');
     if (!badge || !info) return;
 
@@ -1048,18 +1057,18 @@ window.initTodayStatusBadge = function(info, eventsData) {
 
     const overrideRaw = (
         info.todayOverrideText !== undefined ? info.todayOverrideText :
-        (info.todayoverridetext !== undefined ? info.todayoverridetext :
-        (info.todayOverride !== undefined ? info.todayOverride :
-        (info.todayoverride !== undefined ? info.todayoverride :
-        (info.today_override !== undefined ? info.today_override : ''))))
+            (info.todayoverridetext !== undefined ? info.todayoverridetext :
+                (info.todayOverride !== undefined ? info.todayOverride :
+                    (info.todayoverride !== undefined ? info.todayoverride :
+                        (info.today_override !== undefined ? info.today_override : ''))))
     ).trim();
 
     if (overrideRaw !== '') {
         let overrideText = window.formatTextContent ? window.stripHtml(window.formatTextContent(overrideRaw)) : overrideRaw;
         const statusRaw = (
             info.todayOverrideStatus !== undefined ? info.todayOverrideStatus :
-            (info.todayoverridestatus !== undefined ? info.todayoverridestatus :
-            (info.todayOverrideColor !== undefined ? info.todayOverrideColor : ''))
+                (info.todayoverridestatus !== undefined ? info.todayoverridestatus :
+                    (info.todayOverrideColor !== undefined ? info.todayOverrideColor : ''))
         ).trim();
 
         const statusRes = window.resolveStatusOrColor(statusRaw, overrideText);
@@ -1109,17 +1118,17 @@ window.initTodayStatusBadge = function(info, eventsData) {
         if (todayRegex && todayRegex.test(str)) {
             const tOverride = (
                 t.overridetext !== undefined ? t.overridetext :
-                (t.overrideText !== undefined ? t.overrideText :
-                (t.override !== undefined ? t.override : ''))
+                    (t.overrideText !== undefined ? t.overrideText :
+                        (t.override !== undefined ? t.override : ''))
             ).trim();
 
             if (tOverride !== '') {
                 hasOverrideForToday = true;
                 const tStatusRaw = (
                     t.overridestatus !== undefined ? t.overridestatus :
-                    (t.overrideStatus !== undefined ? t.overrideStatus :
-                    (t.overridecolor !== undefined ? t.overridecolor :
-                    (t.status !== undefined ? t.status : '')))
+                        (t.overrideStatus !== undefined ? t.overrideStatus :
+                            (t.overridecolor !== undefined ? t.overridecolor :
+                                (t.status !== undefined ? t.status : '')))
                 ).trim();
 
                 const cleanedOverride = window.stripHtml ? window.stripHtml(window.formatTextContent(tOverride)) : tOverride;
@@ -1173,7 +1182,7 @@ window.initTodayStatusBadge = function(info, eventsData) {
 
 // Baut die Bankverbindungs-Anzeige (2 Umschalt-Knöpfe CH/DE) aus einfachen Textzellen.
 // Jede Zelle: 1. Zeile = Überschrift, weitere Zeilen = je eine Angabe (z. B. "IBAN: ...").
-window.buildBankHtml = function(info) {
+window.buildBankHtml = function (info) {
     const bankInfo = window.getBankInfo ? window.getBankInfo(info) : { ch: '', de: '', legacy: '' };
     const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -1226,11 +1235,11 @@ window.buildBankHtml = function(info) {
         + `</div>`;
 };
 
-window.openLegalModal = function(type) {
+window.openLegalModal = function (type) {
     const modal = document.getElementById('legal-modal');
     const title = document.getElementById('legal-modal-title');
     const body = document.getElementById('legal-modal-body');
-    
+
     if (!modal || !title || !body) return;
 
     const info = window.globalInfoData || {};
@@ -1276,7 +1285,7 @@ window.openLegalModal = function(type) {
     document.body.style.overflow = 'hidden';
 };
 
-window.closeLegalModal = function() {
+window.closeLegalModal = function () {
     const modal = document.getElementById('legal-modal');
     if (modal) {
         modal.classList.add('hidden');
@@ -1300,7 +1309,7 @@ async function initSharedInfo() {
         const text = await window.fetchTextWithEncoding(response);
         const rows = parseCSVShared(text);
         if (rows.length < 2) return;
-        
+
         const info = {};
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
@@ -1308,7 +1317,7 @@ async function initSharedInfo() {
                 const keyPath = (row[0] || '').trim().replace(/^"|"$/g, '');
                 const val = (row[1] || '').trim().replace(/^"|"$/g, '');
                 if (!keyPath) continue;
-                
+
                 const parts = keyPath.split('.');
                 let current = info;
                 for (let j = 0; j < parts.length - 1; j++) {
@@ -1323,7 +1332,7 @@ async function initSharedInfo() {
                 current[lastPart.toLowerCase()] = val;
             }
         }
-        
+
         function convertToArray(obj) {
             if (typeof obj === 'object' && obj !== null) {
                 const keys = Object.keys(obj);
@@ -1358,12 +1367,12 @@ async function initSharedInfo() {
         if (clubEl && cleanInfo.clubName && !clubEl.textContent.trim()) {
             clubEl.textContent = cleanInfo.clubName;
         }
-        
+
         if (window.initTodayStatusBadge) {
             const evData = window.getOrFetchEventsForBadge ? await window.getOrFetchEventsForBadge() : [];
             window.initTodayStatusBadge(cleanInfo, evData);
         }
-    } catch(e) {}
+    } catch (e) { }
 }
 
 async function initDynamicMenu() {
@@ -1545,7 +1554,7 @@ async function initDynamicMenu() {
                 }
             }
         }
-    } catch(e) {
+    } catch (e) {
         console.error("Fehler beim Laden des dynamischen Menüs:", e);
     }
 }
@@ -1555,14 +1564,14 @@ async function initBanner() {
         const response = await window.fetchCSVSource('data/info.csv');
         const text = await window.fetchTextWithEncoding(response);
         const match = text.match(/announcement;(.*)/);
-        if(match && match[1].trim()) {
+        if (match && match[1].trim()) {
             const banner = document.getElementById('top-banner');
-            if(banner) {
+            if (banner) {
                 let rawVal = match[1].trim();
                 if (rawVal.startsWith('"') && rawVal.endsWith('"')) {
                     rawVal = rawVal.slice(1, -1).replace(/""/g, '"');
                 }
-                
+
                 // Prüfe, ob sich der Announcement-Text seit dem letzten Besuch geändert hat
                 const lastSeenText = localStorage.getItem('last_seen_announcement');
                 if (lastSeenText !== rawVal) {
@@ -1589,11 +1598,12 @@ async function initBanner() {
                     const nb = document.getElementById('navbar');
                     if (nb && banner.style.display !== 'none') {
                         nb.style.top = banner.offsetHeight + 'px';
+                        document.body.style.paddingTop = banner.offsetHeight + 'px';
                     }
                 };
                 updateNavbarTop();
                 window.addEventListener('resize', updateNavbarTop);
-                
+
                 banner.querySelector('.close-banner').addEventListener('click', () => {
                     banner.style.display = 'none';
                     localStorage.setItem('is_banner_dismissed', 'true');
@@ -1602,13 +1612,14 @@ async function initBanner() {
                         nb.classList.remove('has-banner');
                         nb.style.top = '';
                     }
+                    document.body.style.paddingTop = '';
                 });
             }
         }
-    } catch(e) {}
+    } catch (e) { }
 }
 
-window.parseGalleryString = function(val) {
+window.parseGalleryString = function (val) {
     if (!val) return [];
     if (Array.isArray(val)) {
         return val.map(item => {
@@ -1623,7 +1634,7 @@ window.parseGalleryString = function(val) {
         }).filter(Boolean);
     }
     if (typeof val !== 'string') return [];
-    
+
     let items = [];
     if (val.includes('||')) {
         items = val.split('||');
@@ -1655,28 +1666,29 @@ window.parseGalleryString = function(val) {
     }).filter(Boolean);
 };
 
-window.renderGalleryHTML = function(gallery, title = '') {
+window.renderGalleryHTML = function (gallery, title = '') {
     const items = window.parseGalleryString(gallery);
     if (!items || items.length === 0) return '';
-    
+
     return `
         <div class="news-gallery-container" style="margin-top: 1.5rem;">
             ${title ? `<h3 style="color: var(--accent-color); margin-bottom: 1rem; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">🖼️ ${title}</h3>` : ''}
             <div class="news-gallery">
                 ${items.map(item => {
-                    const cleanUrl = window.formatImageUrl(item.url);
-                    return `
+        const cleanUrl = window.formatImageUrl(item.url);
+        return `
                     <div class="gallery-figure">
                         <img src="${cleanUrl}" class="gallery-img" alt="${item.caption || 'Galerie Bild'}" onclick="window.open('${cleanUrl}', '_blank')">
                         ${item.caption ? `<div class="gallery-caption">${item.caption}</div>` : ''}
                     </div>
-                `;}).join('')}
+                `;
+    }).join('')}
             </div>
         </div>
     `;
 };
 
-window.parseEventColor = function(colorRaw) {
+window.parseEventColor = function (colorRaw) {
     if (!colorRaw) return null;
     let c = String(colorRaw).trim();
     if (!c || c === '-' || c.toLowerCase() === 'none') return null;
@@ -1689,7 +1701,7 @@ window.parseEventColor = function(colorRaw) {
     return c;
 };
 
-window.getEventCardColorStyles = function(colorRaw) {
+window.getEventCardColorStyles = function (colorRaw) {
     const color = window.parseEventColor(colorRaw);
     if (!color) return { cardStyle: '', dateBoxStyle: '', badgeStyle: '', color: null };
     return {
@@ -1701,7 +1713,7 @@ window.getEventCardColorStyles = function(colorRaw) {
 };
 window.getCardColorStyles = window.getEventCardColorStyles;
 
-window.generateICSFromEvents = function(events, filename) {
+window.generateICSFromEvents = function (events, filename) {
     function formatYMD(d) {
         if (!d || isNaN(d.getTime())) return "20991231";
         const y = d.getFullYear();
@@ -1830,7 +1842,7 @@ window.generateICSFromEvents = function(events, filename) {
     document.body.removeChild(link);
 };
 
-window.renderModalHeaderImage = function(item, title) {
+window.renderModalHeaderImage = function (item, title) {
     if (!item || !item.image || String(item.image).trim() === '') return '';
     const val = String(item.bildImModal || item.showImageInModal || item.showModalImage || item.imageInModal || item.modalImage || '').trim().toLowerCase();
     if (val === 'ja' || val === 'true' || val === '1' || val === 'yes') {
