@@ -679,10 +679,15 @@ function renderNews() {
 
         if (hasImage) {
             if (asBg) {
-                const overlayTop = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 40%, rgba(11, 18, 32, 0.7))` : `rgba(11, 18, 32, 0.4)`;
-                const overlayBottom = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 20%, rgba(11, 18, 32, 0.95))` : `rgba(11, 18, 32, 0.95)`;
+                // Abdunklung: Der obere Kachelbereich ist reine Bildflaeche (kein Text),
+                // dort reicht ein Hauch Abdunklung. Erst ab ~40% Hoehe, wo der Text
+                // beginnt, laeuft der Verlauf auf einen Wert hoch, der weissen Text
+                // auch ueber hellen Fotos sicher lesbar haelt (>= 4.5:1).
+                const overlayTop = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 40%, rgba(11, 18, 32, 0.45))` : `rgba(11, 18, 32, 0.15)`;
+                const overlayMid = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 30%, rgba(11, 18, 32, 0.6))` : `rgba(11, 18, 32, 0.35)`;
+                const overlayBottom = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 20%, rgba(11, 18, 32, 0.88))` : `rgba(11, 18, 32, 0.85)`;
 
-                articleStyle += ` background-color: transparent !important; background-image: linear-gradient(to bottom, ${overlayTop}, ${overlayBottom}), url('${item.image}') !important; background-position: center !important; background-size: cover !important; background-repeat: no-repeat !important;`;
+                articleStyle += ` background-color: transparent !important; background-image: linear-gradient(to bottom, ${overlayTop} 0%, ${overlayMid} 40%, ${overlayBottom} 100%), url('${item.image}') !important; background-position: center !important; background-size: cover !important; background-repeat: no-repeat !important;`;
             } else {
                 imgHTML = `<div class="news-img" style="background-image: url('${item.image}')"></div>`;
             }
@@ -1968,8 +1973,13 @@ function buildTournamentCardHTML(t, isNew) {
     let textShadowStyle = `var(--card-title-shadow, 0 2px 10px rgba(0,0,0,0.8))`;
     let isBgClass = '';
     if (t.image && t.image.trim() !== '') {
-        frontStyle = `border-radius: 12px; background-color: transparent !important; background-image: linear-gradient(to bottom, rgba(11, 18, 32, 0.4), rgba(11, 18, 32, 0.9)), url('${t.image}'); background-position: center; background-size: cover; background-repeat: no-repeat; overflow: hidden; transform: translateZ(0);`;
-        textShadowStyle = `none`;
+        // Gleichmaessige Abdunklung ueber die gesamte Kachel (kein Verlauf).
+        // Die Lesbarkeit des goldenen Titels traegt zusaetzlich der Textschatten.
+        const overlay = `rgba(11, 18, 32, 0.15)`;
+        frontStyle = `border-radius: 12px; background-color: transparent !important; background-image: linear-gradient(${overlay}, ${overlay}), url('${t.image}'); background-position: center; background-size: cover; background-repeat: no-repeat; overflow: hidden; transform: translateZ(0);`;
+        // Enge dunkle Kontur direkt an der Glyphe plus weicher Halo - traegt die
+        // Lesbarkeit des goldenen Titels, da die Abdunklung selbst gering ist.
+        textShadowStyle = `0 0 2px rgba(0,0,0,1), 0 1px 2px rgba(0,0,0,1), 0 2px 8px rgba(0,0,0,0.9), 0 4px 20px rgba(0,0,0,0.8)`;
         isBgClass = 'image-bg-card';
     }
 
