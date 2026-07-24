@@ -705,9 +705,111 @@ window.formatTextContent = function (text) {
 window.stripHtml = function (html) {
     if (!html) return '';
     const tmp = document.createElement("DIV");
-    // Preserve spacing for block elements AND inline elements like span/strong/b/a to avoid glued words
-    tmp.innerHTML = html.replace(/<br\s*[\/]?>|<\/(p|div|li|h[1-6]|span|strong|b|a)>/gi, ' ');
-    return (tmp.textContent || tmp.innerText || "").trim().replace(/\s+/g, ' ');
+    // Preserve spacing for block elements AND inline elements like span/strong/b/a to avoid glued words.
+    // Tabellenzellen/-zeilen ebenfalls trennen, sonst kleben Werte zusammen ("18000 - 1188Az").
+    tmp.innerHTML = html
+        .replace(/<\/(td|th)>/gi, ' \u00b7 ')
+        .replace(/<\/(tr|thead|tbody|table|caption)>/gi, ' ')
+        .replace(/<\/(figure|figcaption|blockquote|dd|dt|section|article|header|footer|tfoot|em|i|small|label)>/gi, ' ')
+        .replace(/<br\s*[\/]?>|<\/(p|div|li|h[1-6]|span|strong|b|a)>/gi, ' ');
+    return (tmp.textContent || tmp.innerText || "")
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/\s*\u00b7\s*(\u00b7\s*)+/g, ' \u00b7 ')
+        .replace(/^\s*\u00b7\s*|\s*\u00b7\s*$/g, '')
+        .trim();
+};
+
+/**
+ * Liefert den Vorschautext einer News/eines Termins fuer die Kachel (als HTML).
+ * Tabellen und Bilder werden NICHT als Text eingeblendet, weil sie in der
+ * kleinen Kachel unleserlich bzw. gar nicht darstellbar sind. Stattdessen
+ * erscheint an genau der Stelle, an der sie im Fliesstext stehen, ein
+ * kursiver Platzhalter. Bildunterschriften bleiben als Text erhalten.
+ * Das Original sieht man beim Klick im Modal.
+ */
+window.getPreviewText = function (content, options) {
+    if (!content) return '';
+    const opts = options || {};
+    const formatted = window.formatTextContent ? window.formatTextContent(content) : content;
+
+    const tmp = document.createElement('div');
+    tmp.innerHTML = formatted;
+
+    const HINT_TABLE = '<span class="preview-media-hint">\ud83d\udcca Tabelle \u2013 zum Ansehen klicken</span>';
+    const HINT_IMAGE = '<span class="preview-media-hint">\ud83d\uddbc\ufe0f Bild \u2013 zum Ansehen klicken</span>';
+    const HINT_IMAGES = '<span class="preview-media-hint">\ud83d\uddbc\ufe0f Bilder \u2013 zum Ansehen klicken</span>';
+    const HINT_GALLERY = '<span class="preview-media-hint">\ud83d\uddbc\ufe0f Bildergalerie \u2013 zum Ansehen klicken</span>';
+    const HINT_VIDEO = '<span class="preview-media-hint">\u25b6\ufe0f Video \u2013 zum Ansehen klicken</span>';
+
+    // Marker aus sichtbaren Zeichen: stripHtml entfernt Steuerzeichen.
+    const M_TABLE = '@@PLATZHALTERTABELLE@@';
+    const M_IMAGE = '@@PLATZHALTERBILD@@';
+    const M_VIDEO = '@@PLATZHALTERVIDEO@@';
+
+    const replaceWithMarker = (el, marker) => {
+        const placeholder = document.createElement('span');
+        placeholder.textContent = ' ' + marker + ' ';
+        el.parentNode.replaceChild(placeholder, el);
+    };
+
+    // Tabellen an ihrer Position markieren
+    tmp.querySelectorAll('table').forEach(t => replaceWithMarker(t, M_TABLE));
+
+    // Videos/Einbettungen separat kennzeichnen (nicht als "Bild")
+    tmp.querySelectorAll('video, iframe, embed, object').forEach(el => replaceWithMarker(el, M_VIDEO));
+
+    // Bilder an ihrer Position markieren. Bei <figure> nur das <img> ersetzen,
+    // damit eine vorhandene Bildunterschrift als Text erhalten bleibt.
+    tmp.querySelectorAll('img, picture, svg').forEach(el => replaceWithMarker(el, M_IMAGE));
+
+    const plain = window.stripHtml(tmp.innerHTML);
+
+    // Fliesstext escapen, da das Ergebnis als HTML eingesetzt wird
+    const esc = (s) => String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    let text = plain;
+
+    // Mehrere gleiche Platzhalter direkt hintereinander zu einem zusammenfassen.
+    // Bei Bildern zusaetzlich merken, ob es mehrere waren (-> "Bilder").
+    let multipleImages = false;
+    text = text.replace(
+        /(?:@@PLATZHALTERBILD@@(?:\s*\u00b7?\s*)?){2,}/g,
+        () => { multipleImages = true; return M_IMAGE; }
+    );
+    text = text.replace(/(?:@@PLATZHALTERTABELLE@@(?:\s*\u00b7?\s*)?)+/g, M_TABLE);
+    text = text.replace(/(?:@@PLATZHALTERVIDEO@@(?:\s*\u00b7?\s*)?)+/g, M_VIDEO);
+
+    // Leerraum glaetten, bevor die Hinweise eingesetzt werden
+    text = text.replace(/\s+/g, ' ').trim();
+
+    // Platzhalter sauber vom umgebenden Text abtrennen
+    [M_TABLE, M_IMAGE, M_VIDEO].forEach(m => {
+        text = text.replace(new RegExp('\\s*' + m + '\\s*', 'g'), ' ' + m + ' ');
+    });
+    text = text.trim();
+
+    // Bild-Hinweis passend zur Anzahl waehlen. Steht ohnehin eine
+    // Galerie-Spalte am Beitrag, wird von "Bildergalerie" gesprochen.
+    const imageHint = opts.hasGallery
+        ? HINT_GALLERY
+        : (multipleImages ? HINT_IMAGES : HINT_IMAGE);
+
+    let html = esc(text)
+        .split(M_TABLE).join(HINT_TABLE)
+        .split(M_VIDEO).join(HINT_VIDEO)
+        .split(M_IMAGE).join(imageHint);
+
+    // Galerie aus der CSV-Spalte: Hinweis anhaengen, falls im Text selbst
+    // kein Bild vorkam (sonst steht der Hinweis bereits an richtiger Stelle).
+    if (opts.hasGallery && html.indexOf(HINT_GALLERY) === -1) {
+        html = html ? `${html} ${HINT_GALLERY}` : HINT_GALLERY;
+    }
+
+    return html.trim();
 };
 
 window.formatImageUrl = function (imgUrl) {
@@ -1389,37 +1491,68 @@ async function initDynamicMenu() {
     // Clear any existing static menu items
     navLinks.innerHTML = '';
 
-    // Define the complete menu structure with base items
+    // Define the complete menu structure with base items.
+    // sortierung: kleinere Zahl = weiter vorne. Die Standardwerte lassen
+    // bewusst Luecken, damit sich eigene Kategorien dazwischen schieben lassen.
     const menuStructure = [
         {
             category: 'Aktuelles',
+            sortierung: 10,
             items: [
-                { title: 'News', href: prefix + '#news' },
-                { title: 'Termine', href: prefix + '#events' },
-                { title: 'Trainingszeiten', href: prefix + '#training' }
+                { title: 'News', href: prefix + '#news', sortierung: 10 },
+                { title: 'Termine', href: prefix + '#events', sortierung: 20 },
+                { title: 'Trainingszeiten', href: prefix + '#training', sortierung: 30 }
             ]
         },
         {
             category: 'Verein',
+            sortierung: 20,
             items: [
-                { title: 'Jugend', href: 'youth.html' },
-                { title: 'Mannschaften', href: prefix + '#teams' },
-                { title: 'Stimmen', href: prefix + '#guestbook' },
-                { title: 'Vorstand', href: prefix + '#members' }
+                { title: 'Jugend', href: 'youth.html', sortierung: 10 },
+                { title: 'Mannschaften', href: prefix + '#teams', sortierung: 20 },
+                { title: 'Stimmen', href: prefix + '#guestbook', sortierung: 30 },
+                { title: 'Vorstand', href: prefix + '#members', sortierung: 40 }
             ]
         },
         {
             category: 'Turniere',
+            sortierung: 30,
             items: [
-                { title: 'Turnier-Übersicht', href: prefix + '#tournaments' }
+                // sortierung 1: bleibt zuverlaessig an erster Stelle, auch wenn
+                // Seiten/Turniere aus den CSV-Dateien mit 10 beginnen.
+                { title: 'Turnier-Übersicht', href: prefix + '#tournaments', sortierung: 1 }
             ]
         },
         {
             category: 'Mediathek',
+            sortierung: 40,
             isSingle: true,
             href: 'mediathek.html'
         }
     ];
+
+    // --- Sortier-Hilfen ---------------------------------------------------
+    // Leere/ungueltige Werte landen ganz hinten (aber vor nichts anderem),
+    // damit bestehende Eintraege ohne Zahl ihre bisherige Reihenfolge behalten.
+    const SORT_ENDE = 100000;
+    const parseSort = (val) => {
+        if (val === undefined || val === null || String(val).trim() === '') return SORT_ENDE;
+        const n = parseFloat(String(val).replace(',', '.').trim());
+        return isNaN(n) ? SORT_ENDE : n;
+    };
+    // Stabil sortieren: bei gleicher Zahl bleibt die urspruengliche Reihenfolge
+    const sortStable = (arr) => arr
+        .map((v, i) => ({ v, i }))
+        .sort((a, b) => (a.v._sort - b.v._sort) || (a.i - b.i))
+        .map(x => x.v);
+
+    // Sammelt alle Kategorien mit ihrer Sortierzahl (Standard + aus CSV)
+    const kategorieSort = {};
+    menuStructure.forEach(g => { kategorieSort[g.category] = g.sortierung; });
+
+    // Alle dynamischen Eintraege werden zuerst gesammelt und erst am Ende
+    // sortiert eingefuegt - sonst haengt sich alles in Ladereihenfolge an.
+    const dynamischeEintraege = [];
 
     // Build the menu DOM
     menuStructure.forEach(group => {
@@ -1433,7 +1566,7 @@ async function initDynamicMenu() {
             li.className = 'dropdown';
             li.setAttribute('data-category', group.category);
             const itemsHTML = group.items.map(item =>
-                `<li><a href="${item.href}">${item.title}</a></li>`
+                `<li data-sort="${item.sortierung !== undefined ? item.sortierung : ''}"><a href="${item.href}">${item.title}</a></li>`
             ).join('');
             li.innerHTML = `
                 <a href="javascript:void(0)" class="dropdown-toggle">${group.category} <span class="dropdown-arrow">▼</span></a>
@@ -1473,90 +1606,207 @@ async function initDynamicMenu() {
         });
     });
 
-    // Load pages.csv to inject dynamic pages into the appropriate category dropdowns
+    // Load pages.csv to collect dynamic pages (Einfuegen erfolgt spaeter sortiert)
     try {
         const response = await window.fetchCSVSource('data/pages.csv');
-        if (!response || !response.ok) return;
-        const text = await window.fetchTextWithEncoding(response);
-        const rows = parseCSVShared(text);
-        if (rows.length <= 1) return;
+        if (response && response.ok) {
+            const text = await window.fetchTextWithEncoding(response);
+            const rows = parseCSVShared(text);
+            if (rows.length > 1) {
+                const headers = rows[0].map(h => (h || '').trim().replace(/^"|"$/g, ''));
 
-        const headers = rows[0].map(h => (h || '').trim().replace(/^"|"$/g, ''));
+                for (let i = 1; i < rows.length; i++) {
+                    const parts = rows[i];
+                    const page = {};
+                    headers.forEach((h, idx) => {
+                        page[h] = parts[idx] !== undefined ? parts[idx].trim().replace(/^"|"$/g, '') : '';
+                    });
 
-        for (let i = 1; i < rows.length; i++) {
-            const parts = rows[i];
-            const page = {};
-            headers.forEach((h, idx) => {
-                page[h] = parts[idx] !== undefined ? parts[idx].trim().replace(/^"|"$/g, '') : '';
-            });
+                    if (!page.id || !page.title) continue;
 
-            if (!page.id || !page.title) continue;
+                    const showInMenuClean = page.showInMenu ? page.showInMenu.replace(/["']/g, '').toLowerCase() : '';
+                    if (showInMenuClean === 'nein' || showInMenuClean === 'false') continue;
 
-            const showInMenuClean = page.showInMenu ? page.showInMenu.replace(/["']/g, '').toLowerCase() : '';
-            if (showInMenuClean === 'nein' || showInMenuClean === 'false') continue;
-
-            let linkUrl = (page.url && page.url.trim() !== '') ? page.url.trim() : `index.html?page=${page.id}`;
-            // On subpages, prefix relative ?page= links
-            if (!isIndex && linkUrl.startsWith('?')) {
-                linkUrl = 'index.html' + linkUrl;
-            }
-
-            // Check if this link or title already exists in the menu
-            let alreadyExists = false;
-            navLinks.querySelectorAll('a').forEach(a => {
-                const href = a.getAttribute('href');
-                const linkText = a.textContent.trim().replace(/ ▼$/, '');
-                if (href === linkUrl || linkText === page.title) {
-                    alreadyExists = true;
-                }
-            });
-            if (alreadyExists) continue;
-
-            const li = document.createElement('li');
-            li.innerHTML = `<a href="${linkUrl}">${page.title}</a>`;
-
-            // Close mobile menu on link click
-            li.querySelector('a').addEventListener('click', () => {
-                navLinks.classList.remove('active');
-                const hamburger = document.getElementById('hamburger');
-                if (hamburger) hamburger.classList.remove('active');
-            });
-
-            const category = page.kategorie ? page.kategorie.trim() : '';
-            if (category) {
-                let dropdown = navLinks.querySelector(`.dropdown[data-category="${category}"]`);
-                if (!dropdown) {
-                    // Create a new dropdown for this category
-                    dropdown = document.createElement('li');
-                    dropdown.className = 'dropdown';
-                    dropdown.setAttribute('data-category', category);
-                    dropdown.innerHTML = `
-                        <a href="javascript:void(0)" class="dropdown-toggle">${category} <span class="dropdown-arrow">▼</span></a>
-                        <ul class="dropdown-menu"></ul>
-                    `;
-                    // Insert before Mediathek (last item) if possible
-                    const mediathekItem = navLinks.lastElementChild;
-                    if (mediathekItem) {
-                        navLinks.insertBefore(dropdown, mediathekItem);
-                    } else {
-                        navLinks.appendChild(dropdown);
+                    let linkUrl = (page.url && page.url.trim() !== '') ? page.url.trim() : `index.html?page=${page.id}`;
+                    // On subpages, prefix relative ?page= links
+                    if (!isIndex && linkUrl.startsWith('?')) {
+                        linkUrl = 'index.html' + linkUrl;
                     }
-                    attachDropdownListener(dropdown.querySelector('.dropdown-toggle'));
-                }
-                const menu = dropdown.querySelector('.dropdown-menu');
-                if (menu) menu.appendChild(li);
-            } else {
-                const mediathekItem = Array.from(navLinks.children).find(el => el.querySelector('a') && el.querySelector('a').getAttribute('href') === 'mediathek.html');
-                if (mediathekItem) {
-                    navLinks.insertBefore(li, mediathekItem);
-                } else {
-                    navLinks.appendChild(li);
+
+                    const kategorie = (page.kategorie || page.Kategorie || '').trim();
+                    const sortWert = parseSort(page.sortierung || page.Sortierung || page.sort);
+                    const katSortWert = parseSort(page.kategorieSortierung || page.kategoriesortierung);
+
+                    // Kategorie-Reihenfolge: kleinster Wert einer Kategorie gewinnt
+                    if (kategorie) {
+                        if (katSortWert !== SORT_ENDE) {
+                            if (kategorieSort[kategorie] === undefined || katSortWert < kategorieSort[kategorie]) {
+                                kategorieSort[kategorie] = katSortWert;
+                            }
+                        } else if (kategorieSort[kategorie] === undefined) {
+                            kategorieSort[kategorie] = SORT_ENDE;
+                        }
+                    } else if (katSortWert !== SORT_ENDE) {
+                        // Einzellink ohne Kategorie: eigene Position auf oberster Ebene
+                        kategorieSort[page.title] = katSortWert;
+                    }
+
+                    dynamischeEintraege.push({
+                        titel: page.title,
+                        linkUrl: linkUrl,
+                        kategorie: kategorie,
+                        _sort: sortWert,
+                        typ: 'seite'
+                    });
                 }
             }
         }
     } catch (e) {
         console.error("Fehler beim Laden des dynamischen Menüs:", e);
     }
+
+    // Turniere aus tournaments.csv sammeln (showInMenu = ja).
+    // Turniere haben keine eigene Seite, sondern oeffnen ein Modal -> der Link
+    // zeigt auf index.html?tournament=<id>, was das Modal automatisch oeffnet.
+    try {
+        const tRes = await window.fetchCSVSource('data/tournaments.csv');
+        if (tRes && tRes.ok) {
+            const tText = await window.fetchTextWithEncoding(tRes);
+            const tRows = parseCSVShared(tText);
+            if (tRows.length > 1) {
+                const tHeaders = tRows[0].map(h => (h || '').trim().replace(/^"|"$/g, ''));
+
+                for (let i = 1; i < tRows.length; i++) {
+                    const parts = tRows[i];
+                    const tour = {};
+                    tHeaders.forEach((h, idx) => {
+                        tour[h] = parts[idx] !== undefined ? parts[idx].trim().replace(/^"|"$/g, '') : '';
+                    });
+
+                    if (!tour.id || !tour.name) continue;
+
+                    // Nur aufnehmen, wenn showInMenu ausdruecklich bejaht wird.
+                    // (Leer = nicht im Menue, damit bestehende Turniere unveraendert bleiben.)
+                    const showRaw = (tour.showInMenu || tour.showinmenu || '').replace(/["']/g, '').trim().toLowerCase();
+                    const show = showRaw === 'ja' || showRaw === 'j' || showRaw === 'yes' || showRaw === 'y' || showRaw === '1' || showRaw === 'true';
+                    if (!show) continue;
+
+                    const linkUrl = (isIndex ? '' : 'index.html') + '?tournament=' + encodeURIComponent(tour.id);
+                    const kategorie = (tour.kategorie || tour.Kategorie || '').trim();
+                    const sortWert = parseSort(tour.sortierung || tour.Sortierung || tour.sort);
+                    const katSortWert = parseSort(tour.kategorieSortierung || tour.kategoriesortierung);
+
+                    if (kategorie) {
+                        if (katSortWert !== SORT_ENDE) {
+                            if (kategorieSort[kategorie] === undefined || katSortWert < kategorieSort[kategorie]) {
+                                kategorieSort[kategorie] = katSortWert;
+                            }
+                        } else if (kategorieSort[kategorie] === undefined) {
+                            kategorieSort[kategorie] = SORT_ENDE;
+                        }
+                    } else if (katSortWert !== SORT_ENDE) {
+                        // Einzellink ohne Kategorie: eigene Position auf oberster Ebene
+                        kategorieSort[tour.name] = katSortWert;
+                    }
+
+                    dynamischeEintraege.push({
+                        titel: tour.name,
+                        linkUrl: linkUrl,
+                        kategorie: kategorie,
+                        _sort: sortWert,
+                        typ: 'turnier',
+                        turnierId: tour.id
+                    });
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Fehler beim Laden der Turniere fürs Menü:", e);
+    }
+
+    // --- Dynamische Eintraege sortiert einfuegen --------------------------
+    sortStable(dynamischeEintraege).forEach(eintrag => {
+        // Doppelte Eintraege vermeiden (gleicher Link oder gleicher Titel)
+        let alreadyExists = false;
+        navLinks.querySelectorAll('a').forEach(a => {
+            const href = a.getAttribute('href');
+            const linkText = a.textContent.trim().replace(/ ▼$/, '');
+            if (href === eintrag.linkUrl || linkText === eintrag.titel) alreadyExists = true;
+        });
+        if (alreadyExists) return;
+
+        const li = document.createElement('li');
+        li.setAttribute('data-sort', String(eintrag._sort));
+        li.innerHTML = `<a href="${eintrag.linkUrl}">${eintrag.titel}</a>`;
+        li.querySelector('a').addEventListener('click', (ev) => {
+            navLinks.classList.remove('active');
+            const hamburger = document.getElementById('hamburger');
+            if (hamburger) hamburger.classList.remove('active');
+
+            // Turnier auf der Startseite: Modal direkt oeffnen statt neu laden
+            if (eintrag.typ === 'turnier' && isIndex && typeof window.openTournamentModal === 'function') {
+                ev.preventDefault();
+                const numericId = /^\d+$/.test(eintrag.turnierId) ? parseInt(eintrag.turnierId, 10) : eintrag.turnierId;
+                try {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('tournament', eintrag.turnierId);
+                    newUrl.hash = '';
+                    history.replaceState(null, '', newUrl.toString());
+                } catch (err) { /* URL-Anpassung ist optional */ }
+                window.openTournamentModal(numericId);
+            }
+        });
+
+        if (eintrag.kategorie) {
+            let dropdown = navLinks.querySelector(`.dropdown[data-category="${eintrag.kategorie}"]`);
+            if (!dropdown) {
+                dropdown = document.createElement('li');
+                dropdown.className = 'dropdown';
+                dropdown.setAttribute('data-category', eintrag.kategorie);
+                dropdown.innerHTML = `
+                    <a href="javascript:void(0)" class="dropdown-toggle">${eintrag.kategorie} <span class="dropdown-arrow">▼</span></a>
+                    <ul class="dropdown-menu"></ul>
+                `;
+                navLinks.appendChild(dropdown);
+                attachDropdownListener(dropdown.querySelector('.dropdown-toggle'));
+            }
+            const menu = dropdown.querySelector('.dropdown-menu');
+            if (menu) menu.appendChild(li);
+        } else {
+            navLinks.appendChild(li);
+        }
+    });
+
+    // --- Eintraege innerhalb jedes Untermenues sortieren ------------------
+    // Die fest eingebauten Punkte tragen ihre Sortierzahl als data-sort,
+    // CSV-Eintraege ebenso -> danach wird jede Liste einmal sortiert.
+    navLinks.querySelectorAll('.dropdown-menu').forEach(menu => {
+        const eintraege = Array.from(menu.children).map((el, i) => ({
+            v: el,
+            i: i,
+            _sort: parseSort(el.getAttribute('data-sort'))
+        }));
+        eintraege
+            .sort((a, b) => (a._sort - b._sort) || (a.i - b.i))
+            .forEach(item => menu.appendChild(item.v));
+    });
+
+    // --- Kategorien (oberste Menuebene) nach Sortierzahl anordnen ---------
+    const topLevel = Array.from(navLinks.children).map((el, idx) => {
+        const kat = el.getAttribute('data-category');
+        let sortWert;
+        if (kat && kategorieSort[kat] !== undefined) {
+            sortWert = kategorieSort[kat];
+        } else {
+            // Einzellink ohne Kategorie (z. B. Mediathek): ueber den Titel suchen
+            const titelEl = el.querySelector('a');
+            const titel = (titelEl ? titelEl.textContent : '').trim().replace(/ ▼$/, '');
+            sortWert = kategorieSort[titel] !== undefined ? kategorieSort[titel] : SORT_ENDE;
+        }
+        return { el, _sort: sortWert, idx };
+    });
+
+    sortStable(topLevel).forEach(item => navLinks.appendChild(item.el));
 }
 
 async function initBanner() {
