@@ -1245,7 +1245,7 @@ async function renderTeams() {
                 <h3 style="font-size: 2rem; color: var(--accent-color); margin-bottom: 0.5rem;">${displayName}</h3>
                 ${(p.rolle || p.title) ? `
                 <div style="display: flex; justify-content: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
-                    ${(p.rolle || p.title).split(',').map(r => `<span style="font-size: 0.8rem; background: rgba(255,255,255,0.08); color: var(--text-secondary); padding: 0.2rem 0.6rem; border-radius: 999px; letter-spacing: 0.5px; border: 1px solid rgba(255,255,255,0.1);">${r.trim()}</span>`).join('')}
+                    ${(p.rolle || p.title).split(',').map(r => `<span class="role-badge">${r.trim()}</span>`).join('')}
                 </div>
                 ` : '<div style="margin-bottom: 1.5rem;"></div>'}
                 ${teamPinsHTML}
@@ -1538,13 +1538,13 @@ async function renderTeams() {
                     }).filter(Boolean).join('');
 
                     return `
-                                    <div class="glass-card player-list-card" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; cursor: pointer; transition: transform 0.2s, border-color 0.2s; border-radius: 12px; background: rgba(255,255,255,0.03);" onclick="openPlayerModalFromList('${player.id}')" onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='var(--accent-color)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--glass-border)';">
+                                    <div class="glass-card player-list-card" style="display: flex; align-items: flex-start; gap: 1rem; padding: 1rem 1.25rem; cursor: pointer; transition: transform 0.2s, border-color 0.2s; border-radius: 12px; background: rgba(255,255,255,0.03);" onclick="openPlayerModalFromList('${player.id}')" onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='var(--accent-color)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--glass-border)';">
                                         <img src="${avatarUrl}" alt="${displayName}" style="width: 62px; height: 62px; border-radius: 50%; border: 2px solid var(--accent-color); object-fit: cover; flex-shrink: 0; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);">
                                         <div style="flex: 1; min-width: 0;">
                                             <div style="font-weight: 700; font-size: 1.15rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.15rem;">${displayName}</div>
                                             ${(player.rolle || player.title) ? `
                                             <div style="display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
-                                                ${(player.rolle || player.title).split(',').map(r => `<span style="font-size: 0.7rem; background: rgba(255,255,255,0.08); color: var(--text-secondary); padding: 0.15rem 0.5rem; border-radius: 999px; letter-spacing: 0.5px;">${r.trim()}</span>`).join('')}
+                                                ${(player.rolle || player.title).split(',').map(r => `<span class="role-badge role-badge-sm">${r.trim()}</span>`).join('')}
                                             </div>
                                             ` : '<div style="margin-bottom: 0.2rem;"></div>'}
                                             <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
@@ -1973,10 +1973,12 @@ function buildTournamentCardHTML(t, isNew) {
     let textShadowStyle = `var(--card-title-shadow, 0 2px 10px rgba(0,0,0,0.8))`;
     let isBgClass = '';
     if (t.image && t.image.trim() !== '') {
-        // Gleichmaessige Abdunklung ueber die gesamte Kachel (kein Verlauf).
-        // Die Lesbarkeit des goldenen Titels traegt zusaetzlich der Textschatten.
-        const overlay = `rgba(11, 18, 32, 0.15)`;
-        frontStyle = `border-radius: 12px; background-color: transparent !important; background-image: linear-gradient(${overlay}, ${overlay}), url('${t.image}'); background-position: center; background-size: cover; background-repeat: no-repeat; overflow: hidden; transform: translateZ(0);`;
+        // Bild und Abdunklung liegen auf zwei Pseudo-Elementen hinter dem Inhalt
+        // (siehe .flip-card-front.image-bg-card in css/style.css). Nur so laesst
+        // sich das Bild weichzeichnen, ohne den Titel mitzuverwischen - ein
+        // filter auf der Kachel selbst wuerde auch die Schrift erfassen.
+        // --card-img: Bild fuer ::before, --card-overlay: Abdunklung fuer ::after.
+        frontStyle = `--card-img: url('${t.image}'); --card-overlay: rgba(11, 18, 32, 0.15); border-radius: 12px; background: transparent !important; overflow: hidden; transform: translateZ(0);`;
         // Enge dunkle Kontur direkt an der Glyphe plus weicher Halo - traegt die
         // Lesbarkeit des goldenen Titels, da die Abdunklung selbst gering ist.
         textShadowStyle = `0 0 2px rgba(0,0,0,1), 0 1px 2px rgba(0,0,0,1), 0 2px 8px rgba(0,0,0,0.9), 0 4px 20px rgba(0,0,0,0.8)`;
