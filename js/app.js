@@ -60,10 +60,10 @@ async function initApp() {
             document.getElementById('home-content').style.display = 'none';
             const dynamicContainer = document.getElementById('dynamic-page');
             dynamicContainer.style.display = 'block';
-            
+
             const pageInfo = pagesData.find(p => p.id === pageParam);
             const contentDiv = document.getElementById('dynamic-page-content');
-            
+
             if (pageInfo) {
                 const isCustomLayout = /<[a-z][\s\S]*>/i.test(pageInfo.content) || pageInfo.content.includes('tournament-hero-banner');
                 if (isCustomLayout) {
@@ -121,7 +121,7 @@ async function initApp() {
         initEventsFilter();
         renderEvents();
         renderMembers(membersData);
-        
+
         loadQuote();
 
         // Footer-Jahr setzen (sofern vorhanden)
@@ -156,12 +156,12 @@ async function initApp() {
 }
 
 // Hilfsfunktion für Initialien
-window.getInitials = function(name) {
+window.getInitials = function (name) {
     if (!name) return '';
     return name.split(' ').filter(n => n.length > 0).map(n => n[0] + '.').join(' ');
 };
 
-window.shareContent = function(title, text, customUrl) {
+window.shareContent = function (title, text, customUrl) {
     const url = customUrl || window.location.href;
     if (navigator.share) {
         navigator.share({ title: title, text: text, url: url }).catch(console.error);
@@ -170,7 +170,7 @@ window.shareContent = function(title, text, customUrl) {
     }
 };
 
-window.buildShareUrl = function(type, id) {
+window.buildShareUrl = function (type, id) {
     const url = new URL(window.location.href);
     url.searchParams.set(type + 'Id', id);
     return url.origin + url.pathname + url.search; // Returns URL without hash
@@ -187,7 +187,7 @@ function parseCSV(text) {
         const char = text[i];
         if (inQuotes) {
             if (char === '"') {
-                if (i + 1 < text.length && text[i+1] === '"') { current += '"'; i++; }
+                if (i + 1 < text.length && text[i + 1] === '"') { current += '"'; i++; }
                 else { inQuotes = false; }
             } else { current += char; }
         } else {
@@ -197,7 +197,7 @@ function parseCSV(text) {
                 row.push(current);
                 if (row.length > 0 && !(row.length === 1 && row[0].trim() === '')) result.push(row);
                 row = []; current = '';
-            } else if (char === '\r') {}
+            } else if (char === '\r') { }
             else { current += char; }
         }
     }
@@ -208,14 +208,14 @@ function parseCSV(text) {
 async function fetchDataCSV(url) {
     const response = await (window.fetchCSVSource ? window.fetchCSVSource(url) : fetch(url));
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status} fetching ${url}`);
-    
+
     const text = await window.fetchTextWithEncoding(response);
     const rows = parseCSV(text);
     if (rows.length < 2) return [];
-    
+
     const headers = rows[0].map(h => (h || '').trim().replace(/^"|"$/g, ''));
     const data = [];
-    
+
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         if (row.length === 0 || (row.length === 1 && !row[0])) continue;
@@ -238,10 +238,10 @@ async function fetchDataCSV(url) {
 async function fetchInfoCSV(url) {
     const response = await (window.fetchCSVSource ? window.fetchCSVSource(url) : fetch(url));
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status} fetching ${url}`);
-    
+
     const text = await window.fetchTextWithEncoding(response);
     const rows = parseCSV(text);
-    
+
     const info = {};
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
@@ -249,7 +249,7 @@ async function fetchInfoCSV(url) {
             const keyPath = (row[0] || '').trim().replace(/^"|"$/g, '');
             const val = (row[1] || '').trim().replace(/^"|"$/g, '');
             if (!keyPath) continue;
-            
+
             const parts = keyPath.split('.');
             let current = info;
             for (let j = 0; j < parts.length - 1; j++) {
@@ -264,7 +264,7 @@ async function fetchInfoCSV(url) {
             current[lastPart.toLowerCase()] = val;
         }
     }
-    
+
     function convertToArray(obj) {
         if (typeof obj === 'object' && obj !== null) {
             const keys = Object.keys(obj);
@@ -281,7 +281,7 @@ async function fetchInfoCSV(url) {
         }
         return obj;
     }
-    
+
     return convertToArray(info);
 }
 
@@ -303,7 +303,7 @@ async function fetchCSV(url) {
     const text = await window.fetchTextWithEncoding(response);
     const rows = parseCSV(text);
     if (rows.length < 2) return [];
-    
+
     const data = [];
     let rawHeaders = rows[0].map(h => (h || '').trim().replace(/^"|"$/g, ''));
     let headers = [];
@@ -334,9 +334,9 @@ async function fetchCSV(url) {
                 startIndex = 2;
                 headers.forEach((header, index) => {
                     let key = header.toLowerCase();
-                    if(header === 'Team') key = 'Team';
-                    if(header === 'ELO') key = 'elo';
-                    if(header === 'DWZ') key = 'dwz';
+                    if (header === 'Team') key = 'Team';
+                    if (header === 'ELO') key = 'elo';
+                    if (header === 'DWZ') key = 'dwz';
                     globalSettings[key] = row2[index] !== 'nein';
                 });
             }
@@ -363,7 +363,7 @@ async function fetchCSV(url) {
         });
         data.push(obj);
     }
-    
+
     data.globalSettings = globalSettings;
     data.headers = headers;
     return data;
@@ -380,13 +380,13 @@ async function loadQuote() {
             const r = quotes[Math.floor(Math.random() * quotes.length)];
             const textEl = document.getElementById('quote-text');
             const authorEl = document.getElementById('quote-author');
-            if(textEl && authorEl) {
+            if (textEl && authorEl) {
                 textEl.innerHTML = `"${window.formatTextContent(r.text)}"`;
                 const roleStr = r.role ? ` · ${r.role}` : '';
                 authorEl.textContent = `— ${r.author}${roleStr}`;
             }
         }
-    } catch(e) {
+    } catch (e) {
         document.getElementById('quote-container').style.display = 'none';
     }
 }
@@ -396,7 +396,7 @@ function renderInfo(info) {
     // Header & Hero
     document.getElementById('nav-club-name').textContent = info.clubName;
     if (window.initTodayStatusBadge) window.initTodayStatusBadge(info, globalEventsData || []);
-    
+
     // Check for custom hero media
     const heroSection = document.querySelector('.hero');
     if (heroSection && info.heroMedia && info.heroMedia.trim() !== '') {
@@ -476,7 +476,7 @@ function renderInfo(info) {
             }
         }
     }
-    
+
     const heroTitleEl = document.getElementById('hero-title');
     if (heroTitleEl) heroTitleEl.innerHTML = `Willkommen beim <br><span class="accent">${info.clubName}</span>`;
     const heroSloganEl = document.getElementById('hero-slogan');
@@ -504,8 +504,8 @@ function renderInfo(info) {
         const cleanAddressStr = (str) => {
             if (!str) return '';
             let s = str.replace(/<br\s*[\/]?>/gi, ', ')
-                       .replace(/<\/?p>/gi, ', ')
-                       .replace(/(\r\n|\n|\r)/gm, ' ');
+                .replace(/<\/?p>/gi, ', ')
+                .replace(/(\r\n|\n|\r)/gm, ' ');
             s = window.stripHtml ? window.stripHtml(s) : s.replace(/<[^>]*>?/gm, ' ');
             return s.replace(/\s*,\s*,+/g, ', ').replace(/\s+/g, ' ').replace(/^,\s*|\s*,\s*$/g, '').trim();
         };
@@ -591,7 +591,7 @@ function initNewsFilter() {
 
     if (categories.length <= 1) return;
 
-    filterContainer.innerHTML = categories.map(cat => 
+    filterContainer.innerHTML = categories.map(cat =>
         `<button class="filter-btn ${cat === currentCategory ? 'active' : ''}" onclick="filterNews('${cat}')">${cat}</button>`
     ).join('');
 }
@@ -606,14 +606,14 @@ function filterNews(category) {
 function renderNews() {
     const container = document.getElementById('news-container');
     const news = globalNewsData;
-    
+
     if (!news || news.length === 0) {
         container.innerHTML = '<p class="loading">Keine aktuellen News vorhanden.</p>';
         return;
     }
 
-    const filteredNews = currentCategory === 'Alle' 
-        ? [...news] 
+    const filteredNews = currentCategory === 'Alle'
+        ? [...news]
         : news.filter(item => {
             if (!item.category) return false;
             const tags = item.category.split(',').map(s => s.trim());
@@ -634,7 +634,7 @@ function renderNews() {
 
         let imgHTML = '';
         let articleStyle = `cursor: pointer; ${colorStyles.cardStyle}`;
-        
+
         const hasImage = item.image && item.image.trim() !== "";
         const isBackground = String(item.bildAlsHintergrund || '').trim().toLowerCase();
         const asBg = (isBackground === 'ja' || isBackground === 'true' || isBackground === '1' || isBackground === 'yes');
@@ -643,7 +643,7 @@ function renderNews() {
             if (asBg) {
                 const overlayTop = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 40%, rgba(11, 18, 32, 0.7))` : `rgba(11, 18, 32, 0.4)`;
                 const overlayBottom = colorStyles.color ? `color-mix(in srgb, ${colorStyles.color} 20%, rgba(11, 18, 32, 0.95))` : `rgba(11, 18, 32, 0.95)`;
-                
+
                 articleStyle += ` background: linear-gradient(to bottom, ${overlayTop}, ${overlayBottom}), url('${item.image}') center/cover no-repeat !important; text-shadow: 0 2px 10px rgba(0,0,0,0.9); border: 1px solid var(--glass-border);`;
             } else {
                 imgHTML = `<div class="news-img" style="background-image: url('${item.image}')"></div>`;
@@ -652,8 +652,8 @@ function renderNews() {
 
         const textContent = window.stripHtml ? window.stripHtml(window.formatTextContent(item.content)) : "";
 
-        const tagsHTML = item.category 
-            ? `<div style="margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.35rem;">${item.category.split(',').map(tag => `<span class="tag-badge">🏷️ ${tag.trim()}</span>`).join('')}</div>` 
+        const tagsHTML = item.category
+            ? `<div style="margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.35rem;">${item.category.split(',').map(tag => `<span class="tag-badge">🏷️ ${tag.trim()}</span>`).join('')}</div>`
             : '';
 
         return `
@@ -670,7 +670,7 @@ function renderNews() {
     }).join('');
 
 
-    
+
     // Animiere die neu gerenderten News-Karten
     initScrollAnimations();
 }
@@ -680,25 +680,25 @@ function renderNews() {
 // 2.5 Galerie rendern (aus News)
 function renderGallery() {
     const container = document.getElementById('gallery-container');
-    if(!container) return;
-    
+    if (!container) return;
+
     let allImages = [];
     globalNewsData.forEach(news => {
-        if(news.gallery) {
+        if (news.gallery) {
             const parsed = window.parseGalleryString ? window.parseGalleryString(news.gallery) : (Array.isArray(news.gallery) ? news.gallery : []);
             parsed.forEach(item => {
                 const url = typeof item === 'object' ? item.url : item;
                 if (url) allImages.push(url);
             });
         }
-        if(news.image && news.image.trim() !== "") {
+        if (news.image && news.image.trim() !== "") {
             allImages.push(news.image);
         }
     });
 
     allImages = [...new Set(allImages)];
 
-    if(allImages.length === 0) {
+    if (allImages.length === 0) {
         document.getElementById('gallery').style.display = 'none';
         return;
     }
@@ -708,7 +708,7 @@ function renderGallery() {
             <div style="background-image: url('${img}')"></div>
         </div>
     `).join('');
-    
+
     initScrollAnimations();
 }
 
@@ -731,7 +731,7 @@ function initEventsFilter() {
 
     if (categories.length <= 1) return;
 
-    filterContainer.innerHTML = categories.map(cat => 
+    filterContainer.innerHTML = categories.map(cat =>
         `<button class="filter-btn ${cat === currentEventCategory ? 'active' : ''}" style="padding: 0.3rem 1rem; font-size: 0.85rem;" onclick="filterEvents('${cat}')">${cat}</button>`
     ).join('');
 }
@@ -745,14 +745,14 @@ function filterEvents(category) {
 function renderEvents() {
     const container = document.getElementById('events-container');
     const events = globalEventsData;
-    
+
     if (!events || events.length === 0) {
         container.innerHTML = '<p class="loading">Keine Termine geplant.</p>';
         return;
     }
 
-    const filteredEvents = currentEventCategory === 'Alle' 
-        ? [...events] 
+    const filteredEvents = currentEventCategory === 'Alle'
+        ? [...events]
         : events.filter(item => {
             if (!item.category) return false;
             const tags = item.category.split(',').map(s => s.trim());
@@ -762,7 +762,7 @@ function renderEvents() {
     filteredEvents.sort((a, b) => (window.parseDateSortable ? window.parseDateSortable(a.date) : window.parseDate(a.date)) - (window.parseDateSortable ? window.parseDateSortable(b.date) : window.parseDate(b.date)));
 
     const today = new Date();
-    today.setHours(0,0,0,0);
+    today.setHours(0, 0, 0, 0);
 
     const upcomingEvents = filteredEvents.filter(e => (window.getEventEndDate ? window.getEventEndDate(e) : window.parseDate(e.date)) >= today);
     const pastEvents = filteredEvents.filter(e => (window.getEventEndDate ? window.getEventEndDate(e) : window.parseDate(e.date)) < today);
@@ -785,7 +785,7 @@ function renderEvents() {
     }
 
 
-    
+
     const btn = document.getElementById('download-all-events-btn');
     if (btn) {
         const span = btn.querySelector('span');
@@ -810,8 +810,8 @@ function createEventHTML(event, isPast) {
         imageHTML = `<div class="event-img-thumbnail" style="background-image: url('${event.image}'); width: 100%; height: 160px; background-size: cover; background-position: center; border-radius: 8px 8px 0 0; margin: -1.5rem -1.5rem 1rem -1.5rem; width: calc(100% + 3rem);"></div>`;
     }
 
-    const locationDisplay = event.locationUrl 
-        ? `<a href="${event.locationUrl}" target="_blank" onclick="event.stopPropagation()" style="color: inherit; text-decoration: underline;">${event.location}</a>` 
+    const locationDisplay = event.locationUrl
+        ? `<a href="${event.locationUrl}" target="_blank" onclick="event.stopPropagation()" style="color: inherit; text-decoration: underline;">${event.location}</a>`
         : event.location;
 
     const colorStyles = window.getEventCardColorStyles ? window.getEventCardColorStyles(event.color || event.akzentfarbe || event.accentColor) : { cardStyle: '', dateBoxStyle: '' };
@@ -867,14 +867,14 @@ function downloadSingleEvent(id) {
 }
 
 function downloadAllEvents() {
-    let filteredEvents = currentEventCategory === 'Alle' 
-        ? globalEventsData 
+    let filteredEvents = currentEventCategory === 'Alle'
+        ? globalEventsData
         : globalEventsData.filter(item => {
             if (!item.category) return false;
             const tags = item.category.split(',').map(s => s.trim());
             return tags.includes(currentEventCategory);
         });
-        
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     filteredEvents = filteredEvents.filter(item => {
@@ -920,7 +920,7 @@ function cleanICSDescription(content) {
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#039;/g, "'");
-    
+
     text = text.trim();
     return text
         .replace(/\\/g, '\\\\')
@@ -954,12 +954,12 @@ function initMembersFilter(members) {
     if (showCH) categories.push({ id: 'Schweiz', label: '🇨🇭 Schweiz' });
     if (showDE) categories.push({ id: 'Deutschland', label: '🇩🇪 Deutschland' });
 
-    filterContainer.innerHTML = categories.map(cat => 
+    filterContainer.innerHTML = categories.map(cat =>
         `<button class="filter-btn ${cat.id === currentMemberCountry ? 'active' : ''}" onclick="filterMembers('${cat.id}')">${cat.label}</button>`
     ).join('');
 }
 
-window.filterMembers = function(country) {
+window.filterMembers = function (country) {
     currentMemberCountry = country;
     initMembersFilter(globalMembersData);
     renderMembers(globalMembersData);
@@ -968,7 +968,7 @@ window.filterMembers = function(country) {
 // 4. Mitglieder rendern
 function renderMembers(members) {
     const container = document.getElementById('members-container');
-    
+
     if (!members || members.length === 0) {
         if (container) container.innerHTML = '<p class="loading">Keine Mitgliederdaten gefunden.</p>';
         return;
@@ -1000,7 +1000,7 @@ function renderMembers(members) {
         // Avatar bestimmen
         const avatar = cleanImage && cleanImage !== ""
             ? cleanImage
-            : (isOffen 
+            : (isOffen
                 ? `https://ui-avatars.com/api/?name=%3F&background=334155&color=d4af37&size=200`
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=fbbf24&color=000&size=200`);
 
@@ -1064,7 +1064,7 @@ function renderMembers(members) {
 async function renderTeams() {
     const container = document.getElementById('floating-field');
     const legendContainer = document.getElementById('teams-legend');
-    if(!container || !legendContainer) return;
+    if (!container || !legendContainer) return;
 
     try {
         const [teams, playersRaw] = await Promise.all([
@@ -1080,7 +1080,7 @@ async function renderTeams() {
         teams.forEach((team, idx) => {
             team.csvIndex = idx;
             team.players = playersRaw
-                .filter(p => p.Team && p.Team.split(',').map(t=>t.trim()).includes(team.name))
+                .filter(p => p.Team && p.Team.split(',').map(t => t.trim()).includes(team.name))
                 .map(p => {
                     const newP = { ...p, teamId: team.id, _globalSettings: playersRaw.globalSettings || {} };
                     if (newP.elo !== undefined) { newP.ELO = newP.elo; delete newP.elo; }
@@ -1144,7 +1144,7 @@ async function renderTeams() {
         window.teamsSearchQuery = '';
         window.teamsViewMode = 'floating';
 
-        window.showPlayerModal = function(p) {
+        window.showPlayerModal = function (p) {
             if (!p) return;
             const modal = document.getElementById('player-modal');
             const modalBody = document.getElementById('player-modal-body');
@@ -1211,7 +1211,7 @@ async function renderTeams() {
             }
         };
 
-        window.openPlayerModalFromList = function(playerId) {
+        window.openPlayerModalFromList = function (playerId) {
             let player = (window.allPlayersData || []).find(p => p.id === playerId || p.name === playerId);
             if (!player) {
                 for (const t of (window.allTeamsData || [])) {
@@ -1404,7 +1404,7 @@ async function renderTeams() {
         floatBtn?.addEventListener('click', () => switchView('floating'));
         listBtn?.addEventListener('click', () => switchView('list'));
 
-        window.updateTeamsListView = function() {
+        window.updateTeamsListView = function () {
             const container = document.getElementById('teams-list-view');
             if (!container) return;
 
@@ -1476,20 +1476,20 @@ async function renderTeams() {
                         </h3>
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem;">
                             ${matchingPlayers.map(player => {
-                                const avatarUrl = player.avatar || mysteryAvatar;
-                                const settings = player._globalSettings || {};
-                                const useFullName = settings.name !== false;
-                                const displayName = useFullName ? player.name : window.getInitials(player.name);
+                    const avatarUrl = player.avatar || mysteryAvatar;
+                    const settings = player._globalSettings || {};
+                    const useFullName = settings.name !== false;
+                    const displayName = useFullName ? player.name : window.getInitials(player.name);
 
-                                const ratingBadges = (window.playersRatingColumns || []).map(col => {
-                                    const v = window.getPlayerRatingVal(player, col);
-                                    if (v > 0) {
-                                        return `<span style="font-size: 0.75rem; background: rgba(212, 175, 55, 0.18); color: var(--accent-color); padding: 0.15rem 0.55rem; border-radius: 999px; font-weight: 600;">${col.label} ${v}</span>`;
-                                    }
-                                    return '';
-                                }).filter(Boolean).join('');
+                    const ratingBadges = (window.playersRatingColumns || []).map(col => {
+                        const v = window.getPlayerRatingVal(player, col);
+                        if (v > 0) {
+                            return `<span style="font-size: 0.75rem; background: rgba(212, 175, 55, 0.18); color: var(--accent-color); padding: 0.15rem 0.55rem; border-radius: 999px; font-weight: 600;">${col.label} ${v}</span>`;
+                        }
+                        return '';
+                    }).filter(Boolean).join('');
 
-                                return `
+                    return `
                                     <div class="glass-card player-list-card" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; cursor: pointer; transition: transform 0.2s, border-color 0.2s; border-radius: 12px; background: rgba(255,255,255,0.03);" onclick="openPlayerModalFromList('${player.id}')" onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='var(--accent-color)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--glass-border)';">
                                         <img src="${avatarUrl}" alt="${displayName}" style="width: 62px; height: 62px; border-radius: 50%; border: 2px solid var(--accent-color); object-fit: cover; flex-shrink: 0; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);">
                                         <div style="flex: 1; min-width: 0;">
@@ -1505,7 +1505,7 @@ async function renderTeams() {
                                         </div>
                                     </div>
                                 `;
-                            }).join('')}
+                }).join('')}
                         </div>
                     </div>
                 `;
@@ -1520,7 +1520,7 @@ async function renderTeams() {
 
 
 
-        window.openPlayerModalFromList = function(playerId) {
+        window.openPlayerModalFromList = function (playerId) {
             let player = (window.allPlayersData || []).find(p => p.id === playerId || p.name === playerId);
             if (!player) {
                 for (const t of (window.allTeamsData || [])) {
@@ -1538,7 +1538,7 @@ async function renderTeams() {
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
         }
-        
+
         const loading = container.querySelector('.loading');
         if (loading) loading.remove();
 
@@ -1547,14 +1547,14 @@ async function renderTeams() {
         const cardsData = [];
         const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e2e8f0" /><circle cx="50" cy="38" r="18" fill="#94a3b8" /><path d="M -20 120 C -20 60, 120 60, 120 120 Z" fill="#94a3b8" /></svg>';
         const mysteryAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
-        
+
         allPlayers.forEach(player => {
             const avatarUrl = player.avatar || mysteryAvatar;
-            
+
             const settings = player._globalSettings || {};
             // Name is full if setting is not explicitly 'nein' (initials), and we reverse the logic if needed. 
             // Wait, default should be initials if we want stringency? No, setting says "ja" for full name, "nein" for initials.
-            const useFullName = settings.name !== false; 
+            const useFullName = settings.name !== false;
             const displayName = useFullName ? player.name : window.getInitials(player.name);
 
             const el = document.createElement('div');
@@ -1562,7 +1562,7 @@ async function renderTeams() {
             el.dataset.team = player.teamId;
             el.dataset.id = player.id;
             el.style.zIndex = '10';
-            
+
             el.innerHTML = `
                 <div class="player-avatar" style="background-image: url('${avatarUrl}');"></div>
                 <div class="player-name">${displayName}</div>
@@ -1586,7 +1586,7 @@ async function renderTeams() {
 
         initPhysicsEngine(cardsData, container, canvas);
 
-    } catch(e) {
+    } catch (e) {
         console.error("Could not load teams", e);
         container.innerHTML = '<p>Keine Teamdaten gefunden.</p>';
     }
@@ -1599,7 +1599,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
     let width = container.clientWidth;
     let height = container.clientHeight;
     const world = container.querySelector('#physics-world');
-    
+
     window.addEventListener('resize', () => {
         width = container.clientWidth;
         height = container.clientHeight;
@@ -1611,7 +1611,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
     let dragOffsetX = 0;
     let dragOffsetY = 0;
     let pointerDownTime = 0;
-    
+
     // Zoom & Pan State
     let scale = 1;
     let panX = 0;
@@ -1638,7 +1638,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
             startPanX = e.clientX - panX;
             startPanY = e.clientY - panY;
             container.style.cursor = 'grabbing';
-            try { container.setPointerCapture(e.pointerId); } catch(err){}
+            try { container.setPointerCapture(e.pointerId); } catch (err) { }
         }
     });
 
@@ -1649,8 +1649,8 @@ function initPhysicsEngine(cardsData, container, canvas) {
             draggedCard = card;
             card.isDragging = true;
             card.el.style.zIndex = '50';
-            try { card.el.setPointerCapture(e.pointerId); } catch(err){}
-            
+            try { card.el.setPointerCapture(e.pointerId); } catch (err) { }
+
             const rect = card.el.getBoundingClientRect();
             // Adjust offset by scale!
             dragOffsetX = (e.clientX - rect.left) / scale;
@@ -1668,16 +1668,16 @@ function initPhysicsEngine(cardsData, container, canvas) {
         }
 
         if (!draggedCard) return;
-        
+
         const containerRect = container.getBoundingClientRect();
         let logicalClientX = (e.clientX - containerRect.left - panX) / scale;
         let logicalClientY = (e.clientY - containerRect.top - panY) / scale;
-        
+
         let newX = logicalClientX - dragOffsetX;
         let newY = logicalClientY - dragOffsetY;
-        
+
         // Keine unsichtbare Grenze mehr!
-        
+
         draggedCard.x = newX;
         draggedCard.y = newY;
         draggedCard.vx = 0;
@@ -1690,13 +1690,13 @@ function initPhysicsEngine(cardsData, container, canvas) {
         if (isPanning) {
             isPanning = false;
             container.style.cursor = 'default';
-            if (e && e.pointerId) try { container.releasePointerCapture(e.pointerId); } catch(err){}
+            if (e && e.pointerId) try { container.releasePointerCapture(e.pointerId); } catch (err) { }
         }
         if (draggedCard) {
-            if (e && e.pointerId) try { draggedCard.el.releasePointerCapture(e.pointerId); } catch(err){}
+            if (e && e.pointerId) try { draggedCard.el.releasePointerCapture(e.pointerId); } catch (err) { }
             draggedCard.isDragging = false;
             draggedCard.el.style.zIndex = '10';
-            
+
             if (Date.now() - pointerDownTime < 200) {
                 // Open Player Modal instead of expanding card
                 if (window.showPlayerModal) {
@@ -1716,11 +1716,11 @@ function initPhysicsEngine(cardsData, container, canvas) {
         const zoomIntensity = 0.1;
         const wheel = e.deltaY < 0 ? 1 : -1;
         const zoom = Math.exp(wheel * zoomIntensity);
-        
+
         const containerRect = container.getBoundingClientRect();
         const mouseX = e.clientX - containerRect.left;
         const mouseY = e.clientY - containerRect.top;
-        
+
         zoomAt(mouseX, mouseY, scale * zoom);
     }, { passive: false });
 
@@ -1746,7 +1746,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
             const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
             const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
             const containerRect = container.getBoundingClientRect();
-            
+
             zoomAt(centerX - containerRect.left, centerY - containerRect.top, initialPinchScale * (dist / initialPinchDistance));
         }
     }, { passive: false });
@@ -1761,7 +1761,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
 
     // Listener wurde entfernt, window.teamConnected übernimmt das.
 
-        function updatePhysics() {
+    function updatePhysics() {
         // Handle window resizes
         if (container.clientWidth !== canvas.width || container.clientHeight !== canvas.height) {
             width = container.clientWidth;
@@ -1771,7 +1771,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         ctx.save();
         ctx.translate(panX, panY);
         ctx.scale(scale, scale);
@@ -1779,32 +1779,32 @@ function initPhysicsEngine(cardsData, container, canvas) {
         ctx.strokeStyle = '#d4af37';
         ctx.lineWidth = 1.5 / scale; // Keep lines crisp regardless of zoom
         ctx.beginPath();
-        
+
         // Render Team Tethers as a SINGLE CHAIN across all activated teams
         const activePlayers = cardsData.filter(c => !c.isHidden && ((c.playerData.teamIds && c.playerData.teamIds.some(tId => window.teamConnected[tId])) || window.teamConnected[c.teamId]));
-        
+
         for (let i = 0; i < activePlayers.length - 1; i++) {
             const card = activePlayers[i];
             const other = activePlayers[i + 1];
 
             const cx1 = card.x + 35; // radius is roughly 35 (avatar is 60px diameter + gap)
-            const cy1 = card.y + 35; 
+            const cy1 = card.y + 35;
             const cx2 = other.x + 35;
             const cy2 = other.y + 35;
-            
+
             ctx.moveTo(cx1, cy1);
             ctx.lineTo(cx2, cy2);
 
             const dx = cx2 - cx1;
             const dy = cy2 - cy1;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            const dist = Math.sqrt(dx * dx + dy * dy);
             const restLength = 100; // how close they cluster
-            
+
             if (dist > restLength) {
                 const force = (dist - restLength) * 0.005; // Gentle pull
                 const fx = (dx / dist) * force;
                 const fy = (dy / dist) * force;
-                
+
                 if (!card.isDragging) {
                     card.vx += fx;
                     card.vy += fy;
@@ -1825,7 +1825,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
             if (!card.isDragging) {
                 card.x += card.vx;
                 card.y += card.vy;
-                
+
                 // Lots of friction so they stop moving when not pulled
                 card.vx *= 0.85;
                 card.vy *= 0.85;
@@ -1843,7 +1843,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
                 const cy2 = other.y + 35;
                 const dx = cx2 - cx1;
                 const dy = cy2 - cy1;
-                const dist = Math.sqrt(dx*dx + dy*dy);
+                const dist = Math.sqrt(dx * dx + dy * dy);
                 const minRadius = card.radius + other.radius + 10; // Extra padding
 
                 if (dist < minRadius && dist > 0) {
@@ -1869,7 +1869,7 @@ function initPhysicsEngine(cardsData, container, canvas) {
 
         cardsData.forEach(card => {
             card.el.style.transform = `translate(${card.x}px, ${card.y}px)`;
-            
+
             const matches = window.matchesPlayerFilter(card.playerData);
             if (!matches) {
                 card.el.style.opacity = '0.15';
@@ -1893,12 +1893,12 @@ function initPhysicsEngine(cardsData, container, canvas) {
 // 4.6 Turniere (Ligen) rendern
 async function renderTournaments() {
     const container = document.getElementById('tournaments-container');
-    if(!container) return;
+    if (!container) return;
 
     try {
         const tournaments = await fetchDataCSV('./data/tournaments.csv');
         globalTournamentsData = tournaments;
-        
+
         container.innerHTML = tournaments.map(t => {
             let buttonHTML = '';
             if (t.link && t.link.trim() !== '') {
@@ -1906,9 +1906,11 @@ async function renderTournaments() {
                 buttonHTML = `<a href="${t.link}" target="_blank" class="btn btn-secondary" style="font-size: 0.9rem;" onclick="event.stopPropagation()">${linkText}</a>`;
             }
 
-            let frontStyle = `border: 1px solid var(--glass-border); border-radius: 12px; background: var(--surface-color);`;
+            let frontStyle = `border: 1px solid var(--glass-border); border-radius: 12px; background: var(--surface-color); overflow: hidden; transform: translateZ(0);`;
+            let textShadowStyle = `var(--card-title-shadow, 0 2px 10px rgba(0,0,0,0.8))`;
             if (t.image && t.image.trim() !== '') {
-                frontStyle += ` background: linear-gradient(to bottom, rgba(11, 18, 32, 0.4), rgba(11, 18, 32, 0.9)), url('${t.image}') center/cover no-repeat;`;
+                frontStyle += ` background-image: linear-gradient(to bottom, rgba(11, 18, 32, 0.4), rgba(11, 18, 32, 0.9)), url('${t.image}'); background-position: center; background-size: 102% 102%; background-repeat: no-repeat;`;
+                textShadowStyle = `0 2px 10px rgba(0,0,0,0.8)`;
             }
 
             return `
@@ -1916,7 +1918,7 @@ async function renderTournaments() {
                 <div class="flip-card-inner">
                     <!-- Vorderseite -->
                     <div class="flip-card-front" style="${frontStyle}">
-                        <h3 style="color: var(--accent-color); font-size: 1.5rem; word-break: break-word; hyphens: auto; padding: 0 1rem; text-align: center; margin: 0; text-shadow: 0 2px 10px rgba(0,0,0,0.8);">${t.name}</h3>
+                        <h3 style="color: var(--accent-color); font-size: 1.5rem; word-break: break-word; hyphens: auto; padding: 0 1rem; text-align: center; margin: 0; text-shadow: ${textShadowStyle};">${t.name}</h3>
                     </div>
                     <!-- Rückseite -->
                     <div class="flip-card-back" style="background: var(--surface-color); border: 1px solid var(--accent-color); border-radius: 12px; padding: 1rem;">
@@ -1927,7 +1929,7 @@ async function renderTournaments() {
             </div>
             `;
         }).join('');
-        
+
         // Re-init animations for new dynamic elements
         setTimeout(() => initScrollAnimations(), 100);
 
@@ -1942,7 +1944,7 @@ async function renderTournaments() {
                 container.scrollBy({ left: 274, behavior: 'smooth' });
             });
         }
-    } catch(e) {
+    } catch (e) {
         console.error("Could not load tournaments", e);
         container.innerHTML = '<p>Keine Turnierdaten gefunden.</p>';
     }
@@ -2170,21 +2172,21 @@ function initScrollAnimations() {
 function openNewsModal(id) {
     const article = globalNewsData.find(n => n.id === id);
     if (!article) return;
-    
+
     const modalBody = document.getElementById('modal-body');
     const dateString = window.parseDate(article.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const authorHTML = article.author ? ` &middot; 👤 ${article.author}` : '';
-    
+
     const galleryHTML = window.renderGalleryHTML ? window.renderGalleryHTML(article.gallery, '') : '';
-    
+
     let tagsHTML = '';
     if (article.category) {
         const tags = article.category.split(',').map(s => s.trim());
         tagsHTML = `<div style="margin-top: 1rem; margin-bottom: 1.5rem;">${tags.map(tag => `<span class="tag-badge">🏷️ ${tag}</span>`).join('')}</div>`;
     }
-    
+
     const headerImgHTML = window.renderModalHeaderImage ? window.renderModalHeaderImage(article) : '';
-    
+
     modalBody.innerHTML = `
         ${headerImgHTML}
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -2201,7 +2203,7 @@ function openNewsModal(id) {
         <div class="news-text" style="font-size: 1.1rem;">${window.formatTextContent(article.content)}</div>
         ${galleryHTML}
     `;
-    
+
     document.getElementById('news-modal').classList.remove('hidden');
     document.body.style.overflow = 'hidden'; // Scrollen des Hintergrunds verhindern
 }
@@ -2211,14 +2213,14 @@ function closeNewsModal() {
     document.body.style.overflow = '';
 }
 
-window.openEventModal = function(id) {
+window.openEventModal = function (id) {
     const event = globalEventsData.find(e => e.id === id);
     if (!event) return;
 
     const modalBody = document.getElementById('event-modal-body');
 
-    const locationDisplay = event.locationUrl 
-        ? `<a href="${event.locationUrl}" target="_blank" style="color: inherit; text-decoration: underline;">${event.location}</a>` 
+    const locationDisplay = event.locationUrl
+        ? `<a href="${event.locationUrl}" target="_blank" style="color: inherit; text-decoration: underline;">${event.location}</a>`
         : event.location;
 
     let tagsHTML = '';
@@ -2275,17 +2277,17 @@ window.openEventModal = function(id) {
     document.body.style.overflow = 'hidden';
 };
 
-window.closeEventModal = function() {
+window.closeEventModal = function () {
     document.getElementById('event-modal').classList.add('hidden');
     document.body.style.overflow = '';
 };
 
-window.openTournamentModal = function(id) {
+window.openTournamentModal = function (id) {
     const tournament = globalTournamentsData.find(t => t.id === id);
     if (!tournament) return;
 
     const modalBody = document.getElementById('tournament-modal-body');
-    
+
     let contentHTML = tournament.content && tournament.content.trim() !== '' ? window.formatTextContent(tournament.content) : '';
 
     let linkButtonHTML = '';
@@ -2322,13 +2324,13 @@ window.openTournamentModal = function(id) {
     document.body.style.overflow = 'hidden';
 };
 
-window.closeTournamentModal = function() {
+window.closeTournamentModal = function () {
     document.getElementById('tournament-modal').classList.add('hidden');
     document.body.style.overflow = '';
 };
 
 // 7. Global Window Click Handler für alle Modals
-window.onclick = function(event) {
+window.onclick = function (event) {
     if (event.target.classList.contains('modal') || event.target.classList.contains('close-modal')) {
         document.querySelectorAll('.modal').forEach(m => {
             // Nur die hidden-Klasse togglen – KEIN Inline-display setzen,
@@ -2344,7 +2346,7 @@ window.onclick = function(event) {
 }
 
 // 8. Google Maps Modal Logik
-window.openMapsModal = function(encodedQuery, locationName) {
+window.openMapsModal = function (encodedQuery, locationName) {
     const modal = document.getElementById('maps-modal');
     if (!modal) return;
 
@@ -2379,7 +2381,7 @@ window.openMapsModal = function(encodedQuery, locationName) {
     document.body.style.overflow = 'hidden';
 };
 
-window.closeMapsModal = function() {
+window.closeMapsModal = function () {
     const modal = document.getElementById('maps-modal');
     if (!modal) return;
     modal.classList.add('hidden');
@@ -2389,7 +2391,7 @@ window.closeMapsModal = function() {
     if (bodyEl) bodyEl.innerHTML = '';
 };
 
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
         window.closeMapsModal();
     }
